@@ -1,0 +1,1684 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>New House — Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-dark bg-dark mb-4">
+  <div class="container">
+    <span class="navbar-brand fw-bold" data-i18n="appTitle"></span>
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <span class="navbar-text text-light" id="phase-badge"></span>
+      <div class="btn-group btn-group-sm" id="perspective-btns" role="group"></div>
+      <div id="role-selector" style="display:none" class="d-flex align-items-center gap-2">
+        <span class="navbar-text text-light small opacity-75" data-i18n="roleLabel"></span>
+        <select class="form-select form-select-sm bg-dark text-light border-secondary" id="role-select" onchange="setRole(this.value)" style="width:auto"></select>
+      </div>
+      <span class="badge" id="role-badge"></span>
+      <div class="btn-group btn-group-sm" role="group" aria-label="Language">
+        <button type="button" class="btn btn-outline-light" id="lang-fr" onclick="setLang('fr')">FR</button>
+        <button type="button" class="btn btn-outline-light" id="lang-en" onclick="setLang('en')">EN</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="container pb-5">
+
+  <!-- Project Overview -->
+  <section class="mb-5">
+    <h2 class="section-title" data-i18n="sectionOverview"></h2>
+    <div class="card shadow-sm">
+      <div class="card-body" id="project-overview"></div>
+    </div>
+  </section>
+
+  <!-- People (adults + children) -->
+  <section class="mb-5">
+    <h2 class="section-title d-flex align-items-center justify-content-between">
+      <span data-i18n="sectionPeople"></span>
+      <button class="btn btn-sm btn-outline-secondary" type="button"
+              data-bs-toggle="collapse" data-bs-target="#people-collapse"
+              aria-expanded="false" aria-controls="people-collapse"
+              data-i18n-expand="sectionExpand" data-i18n-collapse="sectionCollapse">
+      </button>
+    </h2>
+    <div class="collapse" id="people-collapse">
+      <div class="row g-4" id="people-cards"></div>
+    </div>
+  </section>
+
+  <!-- Monthly Situation -->
+  <section class="mb-5">
+    <h2 class="section-title" data-i18n="sectionSituation"></h2>
+    <div id="snapshot-section"></div>
+  </section>
+
+  <!-- Annual Package -->
+  <section class="mb-5">
+    <h2 class="section-title" data-i18n="sectionAnnualPackage"></h2>
+    <div id="annual-snapshot-section"></div>
+  </section>
+
+  <!-- Employment Contracts -->
+  <section class="mb-5" id="section-employment">
+    <h2 class="section-title" data-i18n="sectionEmployment"></h2>
+    <div id="employment-cards" class="row g-4"></div>
+  </section>
+
+  <!-- Real Estate & Mortgages -->
+  <section class="mb-5">
+    <h2 class="section-title" data-i18n="sectionRealEstate"></h2>
+    <div id="realestate-cards"></div>
+  </section>
+
+  <!-- Bank Accounts -->
+  <section class="mb-5" id="section-bank-accounts" style="display:none">
+    <h2 class="section-title d-flex align-items-center justify-content-between">
+      <span data-i18n="sectionBankAccounts"></span>
+      <button class="btn btn-sm btn-outline-secondary" type="button"
+              data-bs-toggle="collapse" data-bs-target="#bank-accounts-collapse"
+              aria-expanded="false" aria-controls="bank-accounts-collapse"
+              data-i18n-expand="sectionExpand" data-i18n-collapse="sectionCollapse">
+      </button>
+    </h2>
+    <div class="collapse" id="bank-accounts-collapse">
+      <div id="bank-accounts-cards"></div>
+    </div>
+  </section>
+
+  <!-- Timeline -->
+  <section class="mb-5">
+    <h2 class="section-title" data-i18n="sectionTimeline"></h2>
+    <div class="card shadow-sm">
+      <ul class="list-group list-group-flush" id="timeline-list"></ul>
+    </div>
+  </section>
+
+  <!-- Economic Indicators -->
+  <section class="mb-5" id="section-indicators" style="display:none">
+    <h2 class="section-title" data-i18n="sectionIndicators"></h2>
+    <div class="row g-3" id="indicators-grid">
+      <!-- electricity — HICP only -->
+      <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100 p-3" id="ind-card-electricity">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span style="font-size:1.3rem">🔌</span>
+            <span class="small fw-semibold text-muted" data-i18n="indElectricity"></span>
+          </div>
+          <div class="fw-bold" id="ind-val-electricity" style="font-size:1.5rem"></div>
+          <div style="height:48px;position:relative;margin:6px 0">
+            <canvas id="ind-chart-electricity" style="width:100%;height:48px"></canvas>
+          </div>
+          <div class="d-flex gap-1 flex-wrap">
+            <span class="badge bg-secondary small" id="ind-date-electricity"></span>
+            <span class="badge bg-light text-dark small" data-i18n="indSourceHICP"></span>
+          </div>
+        </div>
+      </div>
+      <!-- heatingOil — live market + HICP trend -->
+      <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100 p-3" id="ind-card-heatingOil">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span style="font-size:1.3rem">🔥</span>
+            <span class="small fw-semibold text-muted" data-i18n="indHeatingOil"></span>
+          </div>
+          <!-- live market price (shown when available) -->
+          <div id="ind-market-heatingOil" style="display:none" class="mb-1">
+            <div class="fw-bold" id="ind-mkt-val-heatingOil" style="font-size:1.4rem"></div>
+            <div style="height:40px;position:relative;margin:4px 0">
+              <canvas id="ind-mkt-chart-heatingOil" style="width:100%;height:40px"></canvas>
+            </div>
+            <div class="d-flex gap-1 flex-wrap">
+              <span class="badge bg-success text-white small" data-i18n="indSourceLive"></span>
+              <span class="badge bg-secondary small" id="ind-mkt-date-heatingOil"></span>
+            </div>
+          </div>
+          <!-- HICP trend (always shown) -->
+          <div id="ind-hicp-heatingOil">
+            <div class="fw-bold text-muted" id="ind-val-heatingOil" style="font-size:1.1rem"></div>
+            <div style="height:36px;position:relative;margin:4px 0">
+              <canvas id="ind-chart-heatingOil" style="width:100%;height:36px"></canvas>
+            </div>
+            <div class="d-flex gap-1 flex-wrap">
+              <span class="badge bg-secondary small" id="ind-date-heatingOil"></span>
+              <span class="badge bg-light text-dark small" data-i18n="indSourceHICP"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- sp95 — live market + HICP trend -->
+      <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100 p-3" id="ind-card-sp95">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span style="font-size:1.3rem">⛽</span>
+            <span class="small fw-semibold text-muted" data-i18n="indSP95"></span>
+          </div>
+          <!-- live market price (shown when available) -->
+          <div id="ind-market-sp95" style="display:none" class="mb-1">
+            <div class="fw-bold" id="ind-mkt-val-sp95" style="font-size:1.4rem"></div>
+            <div style="height:40px;position:relative;margin:4px 0">
+              <canvas id="ind-mkt-chart-sp95" style="width:100%;height:40px"></canvas>
+            </div>
+            <div class="d-flex gap-1 flex-wrap">
+              <span class="badge bg-success text-white small" data-i18n="indSourceLive"></span>
+              <span class="badge bg-secondary small" id="ind-mkt-date-sp95"></span>
+            </div>
+          </div>
+          <!-- HICP trend (always shown) -->
+          <div id="ind-hicp-sp95">
+            <div class="fw-bold text-muted" id="ind-val-sp95" style="font-size:1.1rem"></div>
+            <div style="height:36px;position:relative;margin:4px 0">
+              <canvas id="ind-chart-sp95" style="width:100%;height:36px"></canvas>
+            </div>
+            <div class="d-flex gap-1 flex-wrap">
+              <span class="badge bg-secondary small" id="ind-date-sp95"></span>
+              <span class="badge bg-light text-dark small" data-i18n="indSourceHICP"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- inflation — HICP only -->
+      <div class="col-6 col-lg-3">
+        <div class="card shadow-sm h-100 p-3" id="ind-card-inflation">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span style="font-size:1.3rem">📊</span>
+            <span class="small fw-semibold text-muted" data-i18n="indInflation"></span>
+          </div>
+          <div class="fw-bold" id="ind-val-inflation" style="font-size:1.5rem"></div>
+          <div style="height:48px;position:relative;margin:6px 0">
+            <canvas id="ind-chart-inflation" style="width:100%;height:48px"></canvas>
+          </div>
+          <div class="d-flex gap-1 flex-wrap">
+            <span class="badge bg-secondary small" id="ind-date-inflation"></span>
+            <span class="badge bg-light text-dark small" data-i18n="indSourceHICP"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="text-muted small mt-2" data-i18n="indYoYNote"></p>
+  </section>
+
+</div>
+
+<script>
+  const project          = __PROJECT_JSON__;
+  const people           = __PEOPLE_JSON__;
+  const addressMap       = __ADDRESS_MAP_JSON__;
+  const incomeMap        = __INCOME_MAP_JSON__;
+  const contracts        = __CONTRACTS_JSON__;
+  const employmentContracts = __EMPLOYMENT_JSON__;
+  const periodicExpenses = __PERIODIC_EXPENSES_JSON__;
+  const mortgages        = __MORTGAGES_JSON__;
+  const realEstate       = __REAL_ESTATE_JSON__;
+  const bankAccounts = __BANK_ACCOUNTS_JSON__;
+  const activeRole = __ROLE_JSON__;
+  const permissionsConfig = __PERMISSIONS_CONFIG_JSON__;
+  const activePerms = new Set(
+    (permissionsConfig.roles.find(r => r.id === activeRole) || {}).permissions || []
+  );
+
+  // ── Translations ──────────────────────────────────────────────────────────
+  const TRANSLATIONS = {
+    en: {
+      appTitle:            '\u{1F3E1} New House Project',
+      phaseBadge:          'Phase 1 \u2014 Scaffolding',
+      roleLabel:           'Role:',
+      roleAdmin:           'Administrator',
+      roleOwner:           'Owner',
+      roleConsultant:      'Consultant',
+      rolePublic:          'Public',
+      sectionOverview:     'Project Overview',
+      sectionPeople:       'People',
+      sectionIncomes:      'Incomes',
+      sectionExpenses:     'Expenses',
+      sectionTimeline:     'Timeline',
+      labelStart:          'Start:',
+      labelTarget:         'Target:',
+      labelCurrency:       'Currency:',
+      milestonesCompleted: 'Milestones completed',
+      labelBorn:           'Born',
+      labelAddress:        'Address',
+      labelPhone:          'Phone',
+      labelEmail:          'Email',
+      labelCompany:        'Company',
+      labelPosition:       'Position',
+      labelFunction:       'Function',
+      labelLocation:       'Location',
+      labelNationalNr:     'National Nr.',
+      labelCNS:            'CNS (LU)',
+      labelIDCard:         'ID Card',
+      labelExpiry:         'exp.',
+      labelGender:         'Gender',
+      labelGenderMale:     'Male',
+      labelGenderFemale:   'Female',
+      sectionChildren:     'Children',
+      sectionBankAccounts: 'Bank Accounts',
+      sectionExpand:       'Show',
+      sectionCollapse:     'Hide',
+      bankName:            'Bank',
+      bankIBAN:            'IBAN',
+      bankType:            'Type',
+      bankCards:           'Cards',
+      bankTypeChecking:    'Checking',
+      bankTypeSavings:     'Savings',
+      bankNone:            'No bank accounts available.',
+      thYear:              'Year',
+      thGross:             'Gross/mo',
+      thNet:               'Net/mo',
+      thTransport:         'Transport',
+      thMealV:             'Meal V.',
+      thChildAllowance:    'Child Allow.',
+      thPerfBonus:         'Perf. Bonus',
+      thEoyBonus:          'EOY Bonus',
+      thHealthIns:         'Health Ins.',
+      statusCompleted:     'Completed',
+      statusPlanning:      'Planning',
+      statusInProgress:    'In Progress',
+      statusBlocked:       'Blocked',
+      net:                 'net',
+      noIncomeData:        name => `No income data for ${name}.`,
+      chartTitle:          'Compensation breakdown (latest year)',
+      compNet:             'Net salary',
+      compTransport:       'Transport',
+      compMeals:           'Meal vouchers',
+      compChildAllowance:  'Child allowance',
+      compPerfBonus:       'Perf. bonus',
+      compEoyBonus:        'EOY bonus',
+      compBonuses:         'Annual bonuses',
+      annualPackage:       'Annual package',
+      expCategory:         'Category',
+      expCurrentCost:      'Current cost /mo',
+      expEndDate:          'Contract end',
+      expNextPlan:         'Next plan',
+      expOngoing:          'Ongoing',
+      expEndingSoon:       'Ending soon',
+      expTitle:            'Expense',
+      expProperty:         'Property',
+      dateLocale:          'en-GB',
+      sectionRealEstate:   'Real Estate',
+      mortContract:        'Contract',
+      mortNominal:         'Loan amount',
+      mortRate:            'Rate',
+      mortTaeg:            'TAEG',
+      mortMonthly:         'Monthly payment',
+      mortFirstPmt:        'First payment',
+      mortLastPmt:         'Last payment',
+      mortTotal:           'Total repaid',
+      mortInterest:        'Total interest',
+      mortTimeProgress:    'Time elapsed',
+      mortCapitalProgress: 'Capital repaid',
+      mortRemaining:       'Remaining balance',
+      mortMonthsOf:        'months of',
+
+      propOwners:          'Owners',
+      propTotalMonthly:    'Total monthly burden',
+      propMortgagesSubtotal: 'Mortgages',
+      propExpensesSubtotal:  'Property expenses',
+      noMortgages:         'No mortgages linked',
+      propType_house:      'House',
+      propType_apartment:  'Apartment',
+      propStatus_primary_residence: 'Primary residence',
+      propStatus_rental:            'Rental',
+      propStatus_secondary:         'Secondary',
+      propStatus_investment:        'Investment',
+      sectionSituation:             'Monthly Situation',
+      sectionAnnualPackage:         'Annual Package',
+      sectionEmployment:            'Employment',
+      labelEmployer:                'Employer',
+      labelContractType:            'Contract type',
+      labelEmploymentStart:         'Employed since',
+      labelSeniority:               'Seniority',
+      labelSalaryHistory:           'Salary history',
+      labelCurrentSalary:           'Current net / gross',
+      labelCDI:                     'Permanent (CDI)',
+      labelCDD:                     'Fixed-term (CDD)',
+      snapLoading:                  'Loading\u2026',
+      snapNoData:                   'No snapshots available.',
+      snapNoDataHint:               'Generate one with: python apps/SnapshotSituation.py YYYY MM',
+      snapPrev:                     'Previous',
+      snapNext:                     'Next',
+      snapIncome:                   'Income',
+      snapIncomeSalary:             'Net salary',
+      snapIncomeMealV:              'Meal vouchers',
+      snapIncomeChild:              'Child allowance',
+      snapTotalIncome:              'Total income',
+      snapContracts:                'Contracts',
+      snapPeriodic:                 'Periodic expenses',
+      snapTotalExpenses:            'Total expenses',
+      snapNetBalance:               'Net balance',
+      snapSummaryIncome:            'Total net income',
+      snapSummaryContracts:         'Contracts',
+      snapSummaryPeriodic:          'Periodic (avg)',
+      snapAnnual:                   '/yr',
+      annSnapLoading:               'Loading\u2026',
+      annSnapNoData:                'No annual snapshots available.',
+      annSnapNoDataHint:            'Generate with: python apps/SnapshotSituation.py',
+      annSnapPrev:                  'Previous',
+      annSnapNext:                  'Next',
+      annSnapIncome:                'Annual Income',
+      annSnapSalary:                'Net salary \u00d7\u202f12',
+      annSnapMealV:                 'Meal vouchers \u00d7\u202f12',
+      annSnapChild:                 'Child allowance \u00d7\u202f12',
+      annSnapPerfBonus:             'Performance bonus',
+      annSnapEoyBonus:              'EOY bonus',
+      annSnapTotalIncome:           'Total annual net',
+      annSnapContracts:             'Contracts',
+      annSnapPeriodic:              'Periodic expenses',
+      annSnapTotalExpenses:         'Total annual expenses',
+      annSnapNetBalance:            'Net annual balance',
+      annSnapMonths:                'months',
+      expCat_electricity:           'Electricity',
+      expCat_telecomMedia:          'Telecom & Media',
+      expCat_mobilePhone:           'Mobile phone',
+      expCat_heating:               'Heating',
+      expCat_childcare:             'Childcare',
+      expCat_food:                  'Food',
+      expCat_water:                 'Water',
+      expCat_personalLoan:          'Personal loan',
+      expCat_mortgage:              'Mortgage',
+      expCat_healthInsurance:       'Health insurance',
+      expCat_fireInsurance:         'Fire insurance',
+      expCat_privateLease:          'Private lease',
+      expCat_carInsurance:          'Car insurance',
+      expCat_propertyTax:           'Property tax',
+      expCat_onlineSubs:            'Online subscriptions',
+      expCat_rent:                  'Rent',
+      expCat_rent:                  'Rent',
+      expCat_employment:            'Employment',
+      expTitle_heatingOil:          'Heating oil',
+      expTitle_daycare:             'Daycare',
+      expTitle_groceries:           'Groceries',
+      expTitle_water:               'Water',
+      expTitle_propertyTax:         'Taxe fonci\u00e8re',
+      expTitle_onlineSubs:          'Online subscriptions',
+      rateBarLabel:                 'LU housing rate\u00a0>\u00a05Y\u00a0fix',
+      rateBarSource:                'ECB\u00a0MIR',
+      sectionIndicators:            'Economic Indicators',
+      indElectricity:               'Electricity \u2014 Belgium',
+      indHeatingOil:                'Heating oil \u2014 Belgium',
+      indSP95:                      'SP95 \u2014 Luxembourg',
+      indInflation:                 'Inflation \u2014 Belgium',
+      indSourceHICP:                'ECB\u00a0HICP',
+      indSourceLive:                'Live\u00a0market',
+      indYoYNote:                   'HICP: year-on-year % change (official statistics, ~3 month lag). Live market: futures prices converted to EUR — proxy for current trend.',
+    },
+    fr: {
+      appTitle:            '\u{1F3E1} Projet Nouvelle Maison',
+      phaseBadge:          'Phase 1 \u2014 Cadrage',
+      roleLabel:           'R\u00f4le\u00a0:',
+      roleAdmin:           'Administrateur',
+      roleOwner:           'Propri\u00e9taire',
+      roleConsultant:      'Consultant',
+      rolePublic:          'Public',
+      sectionOverview:     "Vue d'ensemble",
+      sectionPeople:       'Personnes',
+      sectionIncomes:      'Revenus',
+      sectionExpenses:     'D\u00e9penses',
+      sectionTimeline:     'Calendrier',
+      labelStart:          'D\u00e9but :',
+      labelTarget:         'Objectif :',
+      labelCurrency:       'Devise :',
+      milestonesCompleted: '\u00c9tapes compl\u00e9t\u00e9es',
+      labelBorn:           'N\u00e9(e) le',
+      labelAddress:        'Adresse',
+      labelPhone:          'T\u00e9l\u00e9phone',
+      labelEmail:          'E-mail',
+      labelCompany:        'Entreprise',
+      labelPosition:       'Poste',
+      labelFunction:       'Fonction',
+      labelLocation:       'Lieu',
+      labelNationalNr:     'N\u00b0 national',
+      labelCNS:            'CNS (LU)',
+      labelIDCard:         'Carte d\u2019identit\u00e9',
+      labelExpiry:         'exp.',
+      labelGender:         'Genre',
+      labelGenderMale:     'Homme',
+      labelGenderFemale:   'Femme',
+      sectionChildren:     'Enfants',
+      sectionBankAccounts: 'Comptes bancaires',
+      sectionExpand:       'Afficher',
+      sectionCollapse:     'Masquer',
+      bankName:            'Banque',
+      bankIBAN:            'IBAN',
+      bankType:            'Type',
+      bankCards:           'Cartes',
+      bankTypeChecking:    'Compte courant',
+      bankTypeSavings:     '\u00c9pargne',
+      bankNone:            'Aucun compte bancaire disponible.',
+      thYear:              'Ann\u00e9e',
+      thGross:             'Brut/mois',
+      thNet:               'Net/mois',
+      thTransport:         'Transport',
+      thMealV:             'Titres-repas',
+      thChildAllowance:    'Alloc. enfants',
+      thPerfBonus:         'Prime perf.',
+      thEoyBonus:          "Prime fin d'an.",
+      thHealthIns:         'Mut. sant\u00e9',
+      statusCompleted:     'Termin\u00e9',
+      statusPlanning:      'Planification',
+      statusInProgress:    'En cours',
+      statusBlocked:       'Bloqu\u00e9',
+      net:                 'net',
+      noIncomeData:        name => `Aucune donn\u00e9e de revenus pour ${name}.`,
+      chartTitle:          'R\u00e9partition de la r\u00e9mun\u00e9ration (derni\u00e8re ann\u00e9e)',
+      compNet:             'Salaire net',
+      compTransport:       'Transport',
+      compMeals:           'Titres-repas',
+      compChildAllowance:  'Alloc. enfants',
+      compPerfBonus:       'Prime perf.',
+      compEoyBonus:        "Prime fin d'an.",
+      compBonuses:         'Primes annuelles',
+      annualPackage:       'Package annuel',
+      expCategory:         'Cat\u00e9gorie',
+      expCurrentCost:      'Co\u00fbt actuel /mois',
+      expEndDate:          'Fin de contrat',
+      expNextPlan:         'Prochain forfait',
+      expOngoing:          'En cours',
+      expEndingSoon:       'Expire bient\u00f4t',
+      expTitle:            'D\u00e9pense',
+      expProperty:         'Bien immobilier',
+      dateLocale:          'fr-BE',
+      sectionRealEstate:   'Immobilier',
+      mortContract:        'Contrat',
+      mortNominal:         'Montant emprunt\u00e9',
+      mortRate:            'Taux',
+      mortTaeg:            'TAEG',
+      mortMonthly:         'Mensualit\u00e9',
+      mortFirstPmt:        'Premi\u00e8re \u00e9ch\u00e9ance',
+      mortLastPmt:         'Derni\u00e8re \u00e9ch\u00e9ance',
+      mortTotal:           'Total rembours\u00e9',
+      mortInterest:        'Total int\u00e9r\u00eats',
+      mortTimeProgress:    'Dur\u00e9e \u00e9coul\u00e9e',
+      mortCapitalProgress: 'Capital rembours\u00e9',
+      mortRemaining:       'Capital restant',
+      mortMonthsOf:        'mois sur',
+
+      propOwners:          'Propri\u00e9taires',
+      propTotalMonthly:    'Charge mensuelle totale',
+      propMortgagesSubtotal: 'Cr\u00e9dits',
+      propExpensesSubtotal:  'Charges',
+      noMortgages:         'Aucun cr\u00e9dit li\u00e9',
+      propType_house:      'Maison',
+      propType_apartment:  'Appartement',
+      propStatus_primary_residence: 'R\u00e9sidence principale',
+      propStatus_rental:            'Location',
+      propStatus_secondary:         'R\u00e9sidence secondaire',
+      propStatus_investment:        'Investissement',
+      sectionSituation:             'Situation mensuelle',
+      sectionAnnualPackage:         'Package annuel',
+      sectionEmployment:            'Emploi',
+      labelEmployer:                'Employeur',
+      labelContractType:            'Type de contrat',
+      labelEmploymentStart:         'En poste depuis',
+      labelSeniority:               'Anciennet\u00e9',
+      labelSalaryHistory:           'Historique salarial',
+      labelCurrentSalary:           'Net / brut actuel',
+      labelCDI:                     'CDI',
+      labelCDD:                     'CDD',
+      snapLoading:                  'Chargement\u2026',
+      snapNoData:                   'Aucun aper\u00e7u disponible.',
+      snapNoDataHint:               'G\u00e9n\u00e9rez-en un avec\u00a0: python apps/SnapshotSituation.py YYYY MM',
+      snapPrev:                     'Pr\u00e9c\u00e9dent',
+      snapNext:                     'Suivant',
+      snapIncome:                   'Revenus',
+      snapIncomeSalary:             'Salaire net',
+      snapIncomeMealV:              'Titres-repas',
+      snapIncomeChild:              'Alloc. enfants',
+      snapTotalIncome:              'Total revenus',
+      snapContracts:                'Contrats',
+      snapPeriodic:                 'D\u00e9penses p\u00e9riodiques',
+      snapTotalExpenses:            'Total d\u00e9penses',
+      snapNetBalance:               'Solde net',
+      snapSummaryIncome:            'Total revenus nets',
+      snapSummaryContracts:         'Contrats',
+      snapSummaryPeriodic:          'P\u00e9riodiques (moy.)',
+      snapAnnual:                   '/an',
+      annSnapLoading:               'Chargement\u2026',
+      annSnapNoData:                'Aucun package annuel disponible.',
+      annSnapNoDataHint:            'G\u00e9n\u00e9rez avec\u00a0: python apps/SnapshotSituation.py',
+      annSnapPrev:                  'Pr\u00e9c\u00e9dent',
+      annSnapNext:                  'Suivant',
+      annSnapIncome:                'Revenus annuels',
+      annSnapSalary:                'Salaire net \u00d7\u202f12',
+      annSnapMealV:                 'Titres-repas \u00d7\u202f12',
+      annSnapChild:                 'Alloc. enfants \u00d7\u202f12',
+      annSnapPerfBonus:             'Prime de performance',
+      annSnapEoyBonus:              'Prime de fin d\u2019ann\u00e9e',
+      annSnapTotalIncome:           'Total annuel net',
+      annSnapContracts:             'Contrats',
+      annSnapPeriodic:              'D\u00e9penses p\u00e9riodiques',
+      annSnapTotalExpenses:         'Total d\u00e9penses annuelles',
+      annSnapNetBalance:            'Solde annuel net',
+      annSnapMonths:                'mois',
+      expCat_electricity:           '\u00c9lectricit\u00e9',
+      expCat_telecomMedia:          'T\u00e9l\u00e9com & M\u00e9dias',
+      expCat_mobilePhone:           'T\u00e9l\u00e9phone mobile',
+      expCat_heating:               'Chauffage',
+      expCat_childcare:             'Garde d\u2019enfant',
+      expCat_food:                  'Alimentation',
+      expCat_water:                 'Eau',
+      expCat_personalLoan:          'Pr\u00eat personnel',
+      expCat_mortgage:              'Cr\u00e9dit immobilier',
+      expCat_healthInsurance:       'Assurance maladie',
+      expCat_fireInsurance:         'Assurance incendie',
+      expCat_privateLease:          'Leasing priv\u00e9',
+      expCat_carInsurance:          'Assurance auto',
+      expCat_propertyTax:           'Taxe fonci\u00e8re',
+      expCat_onlineSubs:            'Abonnements en ligne',
+      expCat_rent:                  'Loyer',
+      expCat_employment:            'Emploi',
+      expTitle_heatingOil:          'Mazout',
+      expTitle_daycare:             'Cr\u00e8che',
+      expTitle_groceries:           'Courses',
+      expTitle_water:               'Eau (SPW)',
+      expTitle_propertyTax:         'Taxe fonci\u00e8re',
+      expTitle_onlineSubs:          'Abonnements en ligne',
+      rateBarLabel:                 'Taux immobilier\u00a0LU\u00a0>\u00a05\u00a0ans\u00a0fix\u00e9',
+      rateBarSource:                'ECB\u00a0MIR',
+      sectionIndicators:            'Indicateurs \u00e9conomiques',
+      indElectricity:               '\u00c9lectricit\u00e9 \u2014 Belgique',
+      indHeatingOil:                'Mazout \u2014 Belgique',
+      indSP95:                      'SP95 \u2014 Luxembourg',
+      indInflation:                 'Inflation \u2014 Belgique',
+      indSourceHICP:                'ECB\u00a0HICP',
+      indSourceLive:                'March\u00e9\u00a0temps\u00a0r\u00e9el',
+      indYoYNote:                   'HICP : variation annuelle % (statistiques officielles, d\u00e9calage ~3 mois). March\u00e9 temps r\u00e9el : prix futures convertis en EUR \u2014 indicatif de la tendance actuelle.',
+    },
+  };
+
+  // ── Language ──────────────────────────────────────────────────────────────
+  let lang = localStorage.getItem('lang') || 'fr';
+  function t(key) { return TRANSLATIONS[lang][key]; }
+  function setLang(l) {
+    lang = l;
+    localStorage.setItem('lang', l);
+    document.documentElement.lang = l;
+    render();
+  }
+
+  async function setRole(role) {
+    await fetch('/role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role })
+    });
+    window.location.reload();
+  }
+
+  // ── Perspective state ─────────────────────────────────────────────────────
+  const adults = people.filter(p => p.role !== 'child');
+  const _savedPerspective = localStorage.getItem('perspective');
+  const activePeople = new Set(
+    _savedPerspective
+      ? JSON.parse(_savedPerspective)
+      : adults.map(p => p.id)
+  );
+
+  function togglePerson(id) {
+    if (activePeople.has(id) && activePeople.size === 1) return;
+    activePeople.has(id) ? activePeople.delete(id) : activePeople.add(id);
+    localStorage.setItem('perspective', JSON.stringify([...activePeople]));
+    render();
+  }
+
+  function visiblePeople() {
+    return adults.filter(p => activePeople.has(p.id));
+  }
+
+  // ── Real Estate & Mortgages ───────────────────────────────────────────────
+  const MORT_COLORS = ['#4e79a7', '#e15759', '#59a14f'];
+
+  function fmtPct(n) { return n != null ? Number(n).toFixed(2) + ' %' : '\u2014'; }
+
+  function renderRealEstate() {
+    const container = document.getElementById('realestate-cards');
+    const peopleMap = Object.fromEntries(people.map(p => [p.id, p]));
+
+    const activeProperties = realEstate.filter(prop =>
+      prop.owner_ids.some(id => activePeople.has(id))
+    );
+    const activeMortgages = mortgages.filter(m =>
+      activeProperties.some(p => p.id === m.property_id)
+    );
+
+    if (!activeProperties.length) {
+      container.innerHTML = '';
+      return;
+    }
+
+    // Stable color assignment across all active mortgages
+    const mortColorMap = {};
+    activeMortgages.forEach((m, i) => { mortColorMap[m.contract] = MORT_COLORS[i % MORT_COLORS.length]; });
+
+    // Build property running-cost lookup from contracts + periodic expenses
+    const propertyContractsMap  = {};
+    const propertyPeriodicMap   = {};
+    for (const c of contracts) {
+      if (c.property_id != null) {
+        if (!propertyContractsMap[c.property_id]) propertyContractsMap[c.property_id] = [];
+        propertyContractsMap[c.property_id].push(c);
+      }
+    }
+    for (const e of periodicExpenses) {
+      if (e.property_id != null) {
+        if (!propertyPeriodicMap[e.property_id]) propertyPeriodicMap[e.property_id] = [];
+        propertyPeriodicMap[e.property_id].push(e);
+      }
+    }
+
+    container.innerHTML = activeProperties.map(prop => {
+      const addr        = addressMap[prop.address_id];
+      const ownerNames  = prop.owner_ids.map(id => peopleMap[id]?.name || id).join(', ');
+      const propMorts   = mortgages.filter(m => m.property_id === prop.id);
+      const totalMonthly = propMorts.reduce((s, m) => s + (m.monthly_payment || 0), 0);
+
+      const propContracts = (propertyContractsMap[prop.id] || []);
+      const propPeriodic  = (propertyPeriodicMap[prop.id]  || []);
+      const totalExpensesCost = round2(
+        propContracts.reduce((s, c) => s + (resolveActivePlan(c.periods)?.monthly_cost || 0), 0) +
+        propPeriodic.reduce((s, e) => {
+          const annual = (e.payments || []).reduce((t, p) => t + p.amount, 0);
+          return s + annual / 12;
+        }, 0)
+      );
+
+      const mortCards = propMorts.map((m, i) => {
+        const color = mortColorMap[m.contract] || MORT_COLORS[i % MORT_COLORS.length];
+
+        // Progress calculations
+        const elapsed    = m.first_payment ? Math.max(0, monthsElapsed(m.first_payment)) : 0;
+        const totalMonths = m.months || 1;
+        const timePct    = Math.min(100, Math.round(elapsed / totalMonths * 100));
+        const capPct     = (m.capital_amortized != null && m.nominal)
+                           ? Math.min(100, Math.round(m.capital_amortized / m.nominal * 100)) : null;
+        const remaining  = (m.nominal != null && m.capital_amortized != null)
+                           ? m.nominal - m.capital_amortized : null;
+
+        const timeBar = `
+        <div class="px-3 pb-1 pt-2">
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>${t('mortTimeProgress')}</span>
+            <span>${elapsed} ${t('mortMonthsOf')} ${totalMonths} &mdash; <strong>${timePct}%</strong></span>
+          </div>
+          <div class="progress" style="height:8px">
+            <div class="progress-bar" style="width:${timePct}%;background:${color}" role="progressbar"></div>
+          </div>
+        </div>`;
+
+        const capitalBar = (capPct !== null && activePerms.has('display_amounts')) ? `
+        <div class="px-3 pb-2 pt-1">
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>${t('mortCapitalProgress')}</span>
+            <span>${fmt(m.capital_amortized)} &mdash; <strong>${capPct}%</strong></span>
+          </div>
+          <div class="progress" style="height:8px">
+            <div class="progress-bar bg-success" style="width:${capPct}%" role="progressbar"></div>
+          </div>
+          <div class="text-end small text-muted mt-1">${t('mortRemaining')}: <span class="fw-semibold text-dark">${fmt(remaining)}</span></div>
+        </div>` : '';
+
+        return `
+        <div class="col-md-4">
+          <div class="card shadow-sm h-100" style="border-top:4px solid ${color}">
+            <div class="card-header fw-bold" style="color:${color}">&#127968; ${m.contract}</div>
+            <div class="card-body p-0">
+              <table class="table table-sm table-borderless mb-0 small">
+                <tr><th class="text-muted ps-3 w-50">${t('mortNominal')}</th>  <td class="fw-bold">${fmt(m.nominal)}</td></tr>
+                <tr><th class="text-muted ps-3">${t('mortRate')}</th>           <td>${fmtPct(m.rate)}</td></tr>
+                <tr><th class="text-muted ps-3">${t('mortTaeg')}</th>           <td>${fmtPct(m.taeg)}</td></tr>
+                <tr><th class="text-muted ps-3">${t('mortMonthly')}</th>        <td class="fw-bold">${fmt(m.monthly_payment)}</td></tr>
+                <tr><th class="text-muted ps-3">${t('mortFirstPmt')}</th>       <td>${m.first_payment}</td></tr>
+                <tr><th class="text-muted ps-3">${t('mortLastPmt')}</th>        <td>${m.last_payment}</td></tr>
+                <tr><th class="text-muted ps-3">${t('mortTotal')}</th>          <td>${fmt(m.total_amount)}</td></tr>
+                <tr><th class="text-muted ps-3">${t('mortInterest')}</th>       <td class="text-danger">${fmt(m.total_interest)}</td></tr>
+              </table>
+              <div class="border-top mt-1">${timeBar}${capitalBar}</div>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
+      return `
+      <div class="card shadow-sm mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2 py-3">
+          <span class="fw-bold fs-6">&#127968; ${fmtAddress(addr)}</span>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <span class="text-muted small">${t('propOwners')}: <strong>${ownerNames}</strong></span>
+            <span class="badge bg-secondary">${t('propType_' + prop.type)}</span>
+            <span class="badge bg-primary">${t('propStatus_' + prop.status)}</span>
+          </div>
+        </div>
+        <div class="card-body">
+          ${propMorts.length
+            ? `<div class="row g-4">${mortCards}</div>
+               ${activePerms.has('display_amounts') ? `
+               <div class="border-top mt-3 pt-3 small">
+                 <div class="d-flex justify-content-end align-items-start gap-4 flex-wrap">
+                   <div class="text-end">
+                     <div class="text-muted">${t('propMortgagesSubtotal')}: <span class="fw-semibold text-dark">${fmt(totalMonthly)}</span></div>
+                      ${totalExpensesCost ? `<div class="text-muted">${t('propExpensesSubtotal')}: <span class="fw-semibold text-dark">${fmt(totalExpensesCost)}</span></div>` : ''}
+                   </div>
+                   <div class="text-end border-start ps-4">
+                     <div class="text-muted fw-semibold mb-1">${t('propTotalMonthly')}</div>
+                     <div class="fw-bold fs-5 text-dark">${fmt(totalMonthly + totalExpensesCost)}</div>
+                   </div>
+                 </div>
+               </div>` : ''}`
+            : `<p class="text-muted mb-0">${t('noMortgages')}</p>`
+          }
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Employment Contracts ─────────────────────────────────────────────────
+  function renderEmployment() {
+    const section = document.getElementById('section-employment');
+    const container = document.getElementById('employment-cards');
+
+    if (!employmentContracts.length || activeRole === 'public') {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = '';
+
+    function computeSeniority(startDateStr) {
+      const start = new Date(startDateStr);
+      const now = new Date();
+      let years  = now.getFullYear() - start.getFullYear();
+      let months = now.getMonth()    - start.getMonth();
+      if (months < 0) { years--; months += 12; }
+      return { years, months };
+    }
+
+    function resolveCurrentPeriod(periods) {
+      if (!periods || !periods.length) return null;
+      const today = new Date();
+      const target = new Date(today.getFullYear(), today.getMonth(), 1);
+      for (const p of periods) {
+        const s = p.start_date ? new Date(p.start_date) : null;
+        const e = p.end_date   ? new Date(p.end_date)   : null;
+        if ((!s || s <= target) && (!e || e >= target)) return p;
+      }
+      return periods[periods.length - 1];
+    }
+
+    const peopleMap = Object.fromEntries(people.map(p => [p.id, p]));
+
+    container.innerHTML = employmentContracts.map(c => {
+      const person  = peopleMap[c.owner_id] || {};
+      const addr    = addressMap[c.employer_address_id] || null;
+      const current = resolveCurrentPeriod(c.periods || []);
+      const sen     = c.employment_start ? computeSeniority(c.employment_start) : null;
+
+      const contractTypeBadge = c.contract_type === 'CDI'
+        ? `<span class="badge bg-success">${t('labelCDI')}</span>`
+        : c.contract_type === 'CDD'
+        ? `<span class="badge bg-warning text-dark">${t('labelCDD')}</span>`
+        : '';
+
+      const seniorityStr = sen
+        ? `${sen.years} ${sen.years === 1 ? 'yr' : 'yrs'} ${sen.months} mo`
+        : '—';
+
+      const addrStr = addr
+        ? `${addr.street_number ? addr.street_number + ' ' : ''}${addr.street_name}, ${addr.postal_code} ${addr.city}`
+        : '';
+
+      const salaryRow = (current && current.monthly_cost != null)
+        ? `<div class="mt-2 pt-2 border-top">
+             <div class="text-muted small">${t('labelCurrentSalary')}</div>
+             <div class="fw-semibold">
+               ${fmt(current.monthly_cost)}<span class="text-muted fw-normal"> net</span>
+               ${current.gross_monthly != null ? ` / ${fmt(current.gross_monthly)}<span class="text-muted fw-normal"> gross</span>` : ''}
+             </div>
+           </div>`
+        : '';
+
+      // Salary history table (only if amounts available)
+      const hasAmounts = (c.periods || []).some(p => p.monthly_cost != null);
+      const historyRows = hasAmounts
+        ? (c.periods || []).map(p => {
+            const from = p.start_date ? p.start_date.slice(0,7) : '—';
+            const to   = p.end_date   ? p.end_date.slice(0,7)   : '∞';
+            const isCurrent = p === current;
+            return `<tr${isCurrent ? ' class="table-active fw-semibold"' : ''}>
+              <td>${from}</td><td>${to}</td>
+              <td class="text-end">${p.monthly_cost != null ? fmt(p.monthly_cost) : '—'}</td>
+              <td class="text-end">${p.gross_monthly != null ? fmt(p.gross_monthly) : '—'}</td>
+            </tr>`;
+          }).join('')
+        : '';
+
+      const collapseId = `salary-history-${c.id}`;
+      const historyTable = hasAmounts
+        ? `<div class="mt-2 pt-2 border-top">
+             <button class="btn btn-link btn-sm p-0 text-muted text-decoration-none"
+               type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}"
+               aria-expanded="false">
+               ${t('labelSalaryHistory')} <span class="toggle-chevron">&#9660;</span>
+             </button>
+             <div class="collapse" id="${collapseId}">
+               <div class="table-responsive mt-1">
+                 <table class="table table-sm table-borderless mb-0" style="font-size:.82em">
+                   <thead class="text-muted"><tr>
+                     <th>From</th><th>To</th>
+                     <th class="text-end">Net/mo</th><th class="text-end">Gross/mo</th>
+                   </tr></thead>
+                   <tbody>${historyRows}</tbody>
+                 </table>
+               </div>
+             </div>
+           </div>`
+        : '';
+
+      return `<div class="col-12 col-md-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <div class="d-flex align-items-start justify-content-between mb-2">
+              <div>
+                <h5 class="mb-0">${c.title}</h5>
+                ${addrStr ? `<div class="text-muted small">${addrStr}</div>` : ''}
+              </div>
+              <div class="text-end">
+                ${contractTypeBadge}
+                <div class="small text-muted mt-1">${person.name || ''}</div>
+              </div>
+            </div>
+            ${c.employment_start ? `
+            <div class="row g-2 mb-1">
+              <div class="col-6">
+                <div class="text-muted small">${t('labelEmploymentStart')}</div>
+                <div class="fw-semibold">${c.employment_start}</div>
+              </div>
+              <div class="col-6">
+                <div class="text-muted small">${t('labelSeniority')}</div>
+                <div class="fw-semibold">${seniorityStr}</div>
+              </div>
+            </div>` : ''}
+            ${salaryRow}
+            ${historyTable}
+            ${c.notes ? `<div class="mt-2 text-muted small fst-italic">${c.notes}</div>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  async function copyToClipboard(btn, value) {
+    try {
+      await navigator.clipboard.writeText(value);
+      const orig = btn.innerHTML;
+      btn.innerHTML = '&#10003;';
+      btn.style.color = '#198754';
+      setTimeout(() => { btn.innerHTML = orig; btn.style.color = ''; }, 1500);
+    } catch (e) {}
+  }
+  function copyBtn(value) {
+    const safe = value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `<button type="button" class="btn btn-sm p-0 ms-1 border-0 bg-transparent text-muted"
+      style="line-height:1;vertical-align:middle;font-size:.8em"
+      onclick="copyToClipboard(this,'${safe}')" title="Copy">&#128203;</button>`;
+  }
+
+  function fmt(n) {
+    return n != null ? Number(n).toLocaleString('fr-BE', { style: 'currency', currency: 'EUR' }) : '\u2014';
+  }
+  function parseDMY(str) {
+    const [d, mo, y] = str.split('/');
+    return new Date(+y, +mo - 1, +d);
+  }
+  function monthsElapsed(dateStr) {
+    const start = parseDMY(dateStr);
+    const now = new Date();
+    return (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  }
+  function fmtDate(d) { return d ? new Date(d).toLocaleDateString(t('dateLocale')) : '\u2014'; }
+  function statusBadge(s) {
+    const clsMap   = { Completed: 'success', Planning: 'warning', 'In Progress': 'primary', Blocked: 'danger' };
+    const labelMap = { Completed: 'statusCompleted', Planning: 'statusPlanning', 'In Progress': 'statusInProgress', Blocked: 'statusBlocked' };
+    return `<span class="badge bg-${clsMap[s] || 'secondary'}">${labelMap[s] ? t(labelMap[s]) : s}</span>`;
+  }
+  function fmtAddress(a) {
+    if (!a) return '\u2014';
+    return `${a.street_number} ${a.street_name}, ${a.postal_code} ${a.city}, ${a.country}`;
+  }
+
+  // ── Contract helpers ─────────────────────────────────────────────────────
+  function round2(n) { return Math.round(n * 100) / 100; }
+
+  // Resolve translated title/category — fall back to raw string for company names.
+  function tExp(item) { return item.title_i18n    ? (TRANSLATIONS[lang][item.title_i18n]    || item.title)    : item.title; }
+  function tCat(item) { return item.category_i18n ? (TRANSLATIONS[lang][item.category_i18n] || item.category) : item.category; }
+
+  // Return the currently active plan from a plans array.
+  // Returns null if all plans have expired (contract is over).
+  function resolveActivePlan(plans) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (const plan of (plans || [])) {
+      const start = plan.start_date ? new Date(plan.start_date) : null;
+      const end   = plan.end_date   ? new Date(plan.end_date)   : null;
+      if ((start === null || start <= today) && (end === null || end >= today)) return plan;
+    }
+    const last = (plans || [])[(plans || []).length - 1] || null;
+    if (last && last.end_date && new Date(last.end_date) < today) return null;
+    return last;
+  }
+
+  // ── Snapshot state ────────────────────────────────────────────────────────
+  let _availableMonths = [];
+  let _currentMonthIdx = -1;
+  let _currentSnapshot = null;
+  let _snapshotsLoaded = false;
+
+  async function initSnapshots() {
+    try {
+      const months = await fetch('/snapshots').then(r => r.json());
+      _availableMonths = months;
+      if (months.length > 0) {
+        // Default to the snapshot nearest to the current month (prefer current or future)
+        const now = new Date();
+        const currentYM = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+        let best = months.length - 1;
+        for (let i = 0; i < months.length; i++) {
+          if (months[i] >= currentYM) { best = i; break; }
+        }
+        _currentMonthIdx = best;
+        _currentSnapshot = await fetch(`/snapshots/${months[_currentMonthIdx]}`).then(r => r.json());
+      }
+    } catch (e) {
+      console.error('Failed to load snapshots', e);
+    }
+    _snapshotsLoaded = true;
+    renderSnapshotSection();
+  }
+
+  window.navigateSnapshot = async function (dir) {
+    const newIdx = _currentMonthIdx + dir;
+    if (newIdx < 0 || newIdx >= _availableMonths.length) return;
+    _currentMonthIdx = newIdx;
+    _currentSnapshot = await fetch(`/snapshots/${_availableMonths[_currentMonthIdx]}`).then(r => r.json());
+    renderSnapshotSection();
+  };
+
+  function renderSnapshotSection() {
+    const container = document.getElementById('snapshot-section');
+    if (!container) return;
+
+    if (!_snapshotsLoaded) {
+      container.innerHTML = `<p class="text-muted">&#8987; ${t('snapLoading')}</p>`;
+      return;
+    }
+    if (!_availableMonths.length) {
+      container.innerHTML = `
+        <div class="card shadow-sm">
+          <div class="card-body text-muted">
+            <p class="mb-1">${t('snapNoData')}</p>
+            <code class="small">${t('snapNoDataHint')}</code>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const snap        = _currentSnapshot;
+    const canGoBack   = _currentMonthIdx > 0;
+    const canGoFwd    = _currentMonthIdx < _availableMonths.length - 1;
+    const visibleIds  = new Set(visiblePeople().map(p => p.id));
+    const peopleMap   = Object.fromEntries(people.map(p => [p.id, p]));
+    const shownPeople = (snap.people || []).filter(p => visibleIds.has(p.person_id));
+
+    const personCards = shownPeople.map(p => {
+      const name = peopleMap[p.person_id]?.name || `Person ${p.person_id}`;
+      const inc  = p.income || {};
+
+      const incomeRows = [
+        { label: t('snapIncomeSalary'), val: inc.net_monthly_salary },
+        { label: t('snapIncomeMealV'),  val: inc.meal_vouchers },
+        { label: t('snapIncomeChild'),  val: inc.child_allowance },
+      ].filter(r => r.val > 0).map(r =>
+        `<tr><td class="text-muted small">${r.label}</td><td class="text-end fw-semibold">${fmt(r.val)}</td></tr>`
+      ).join('');
+
+      const contractRows = (p.contracts || []).map(c =>
+        `<tr>
+          <td>${tExp(c)}</td>
+          <td><span class="badge bg-light text-dark border">${tCat(c)}</span></td>
+          <td class="text-end fw-bold">${fmt(c.monthly_cost)}</td>
+        </tr>`
+      ).join('');
+
+      const periodicRows = (p.periodic_expenses || []).map(e =>
+        `<tr>
+          <td>${tExp(e)}</td>
+          <td><span class="badge bg-light text-dark border">${tCat(e)}</span></td>
+          <td class="text-end fw-bold">${fmt(e.monthly_avg)} <span class="text-muted small">(${fmt(e.annual_total)}${t('snapAnnual')})</span></td>
+        </tr>`
+      ).join('');
+
+      const netBal      = (inc.total_monthly_net != null && p.total_monthly_expenses != null)
+                          ? round2(inc.total_monthly_net - p.total_monthly_expenses) : null;
+      const balColor    = netBal == null ? 'secondary' : netBal >= 0 ? 'success' : 'danger';
+
+      return `
+      <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header fw-bold">&#128100; ${name}</div>
+          <div class="card-body p-0">
+            <div class="px-3 pt-3 pb-1">
+              <div class="small fw-semibold mb-1 text-uppercase" style="color:#27ae60">&#9650; ${t('snapIncome')}</div>
+              <table class="table table-sm mb-2">
+                <tbody>${incomeRows}</tbody>
+                <tfoot class="table-light">
+                  <tr><td class="fw-bold small" style="color:#27ae60">&#9650; ${t('snapTotalIncome')}</td>
+                      <td class="text-end fw-bold" style="color:#27ae60">${fmt(inc.total_monthly_net)}</td></tr>
+                </tfoot>
+              </table>
+            </div>
+            ${contractRows ? `
+            <div class="px-3 py-2 border-top">
+              <div class="small fw-semibold mb-1 text-uppercase" style="color:#e74c3c">&#9660; ${t('snapContracts')}</div>
+              <table class="table table-sm mb-0"><tbody>${contractRows}</tbody></table>
+            </div>` : ''}
+            ${periodicRows ? `
+            <div class="px-3 py-2 border-top">
+              <div class="small fw-semibold mb-1 text-uppercase" style="color:#e74c3c">&#9660; ${t('snapPeriodic')}</div>
+              <table class="table table-sm mb-0"><tbody>${periodicRows}</tbody></table>
+            </div>` : ''}
+            <div class="px-3 py-2 border-top bg-light">
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="small fw-semibold" style="color:#e74c3c">&#9660; ${t('snapTotalExpenses')}</span>
+                <span class="fw-bold" style="color:#e74c3c">${p.total_monthly_expenses != null ? '\u2212\u00a0' + fmt(p.total_monthly_expenses) : '\u2014'}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top">
+                <span class="fw-semibold">${t('snapNetBalance')}</span>
+                <span class="fw-bold fs-5" style="color:${netBal == null ? '#6c757d' : netBal >= 0 ? '#27ae60' : '#e74c3c'}">
+                  ${netBal != null ? (netBal >= 0 ? '&#9650;&nbsp;' : '&#9660;&nbsp;') : ''}${fmt(netBal)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    const summaryHtml = snap.summary ? `
+    <div class="card shadow-sm mt-3" style="border-top:3px solid #4e79a7">
+      <div class="card-body py-3">
+        <div class="row text-center g-3">
+          <div class="col-6 col-md-3">
+            <div class="text-muted small mb-1">${t('snapSummaryIncome')}</div>
+            <div class="fw-bold" style="color:#27ae60">&#9650; ${fmt(snap.summary.total_net_income)}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small mb-1">${t('snapSummaryContracts')}</div>
+            <div class="fw-bold" style="color:#e74c3c">&#9660; ${fmt(snap.summary.total_contracts)}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small mb-1">${t('snapSummaryPeriodic')}</div>
+            <div class="fw-bold" style="color:#e74c3c">&#9660; ${fmt(snap.summary.total_periodic_avg)}</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted small mb-1">${t('snapNetBalance')}</div>
+            <div class="fw-bold fs-5" style="color:${snap.summary.net_balance >= 0 ? '#27ae60' : '#e74c3c'}">
+              ${snap.summary.net_balance >= 0 ? '&#9650;' : '&#9660;'}&nbsp;${fmt(snap.summary.net_balance)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>` : '';
+
+    container.innerHTML = `
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <button class="btn btn-outline-secondary btn-sm" onclick="navigateSnapshot(-1)" ${canGoBack ? '' : 'disabled'}>&#8592; ${t('snapPrev')}</button>
+        <h5 class="mb-0 fw-bold">${snap.label || ''}</h5>
+        <button class="btn btn-outline-secondary btn-sm" onclick="navigateSnapshot(1)"  ${canGoFwd  ? '' : 'disabled'}>${t('snapNext')} &#8594;</button>
+      </div>
+      <div class="row g-4">${personCards}</div>
+      ${summaryHtml}`;
+  }
+
+  // ── Annual Snapshots ──────────────────────────────────────────────────────
+  let _availableAnnualYears  = [];
+  let _currentYearIdx        = 0;
+  let _currentAnnualSnapshot = null;
+  let _annualSnapshotsLoaded = false;
+
+  async function initAnnualSnapshots() {
+    try {
+      const years = await fetch('/snapshots/annual').then(r => r.json());
+      _availableAnnualYears = years;
+      if (years.length > 0) {
+        // Default to current year, or nearest available
+        const currentYear = new Date().getFullYear();
+        let best = 0;
+        for (let i = 0; i < years.length; i++) {
+          if (years[i] >= currentYear) { best = i; break; }
+        }
+        _currentYearIdx = best;
+        _currentAnnualSnapshot = await fetch(`/snapshots/annual/${years[best]}`).then(r => r.json());
+      }
+    } catch (e) {
+      console.error('Failed to load annual snapshots', e);
+    }
+    _annualSnapshotsLoaded = true;
+    renderAnnualSnapshotSection();
+  }
+
+  window.navigateAnnualSnapshot = async function (dir) {
+    const newIdx = _currentYearIdx + dir;
+    if (newIdx < 0 || newIdx >= _availableAnnualYears.length) return;
+    _currentYearIdx = newIdx;
+    _currentAnnualSnapshot = await fetch(`/snapshots/annual/${_availableAnnualYears[newIdx]}`).then(r => r.json());
+    renderAnnualSnapshotSection();
+  };
+
+  function renderAnnualSnapshotSection() {
+    const container = document.getElementById('annual-snapshot-section');
+    if (!container) return;
+
+    if (!_annualSnapshotsLoaded) {
+      container.innerHTML = `<p class="text-muted">&#8987; ${t('annSnapLoading')}</p>`;
+      return;
+    }
+    if (!_availableAnnualYears.length) {
+      container.innerHTML = `
+        <div class="card shadow-sm">
+          <div class="card-body text-muted">
+            <p class="mb-1">${t('annSnapNoData')}</p>
+            <code class="small">${t('annSnapNoDataHint')}</code>
+          </div>
+        </div>`;
+      return;
+    }
+
+    const snap       = _currentAnnualSnapshot;
+    const canGoBack  = _currentYearIdx > 0;
+    const canGoFwd   = _currentYearIdx < _availableAnnualYears.length - 1;
+    const visibleIds = new Set(visiblePeople().map(p => p.id));
+    const peopleMap  = Object.fromEntries(people.map(p => [p.id, p]));
+    const shownPeople = (snap.people || []).filter(p => visibleIds.has(p.person_id));
+
+    const personCards = shownPeople.map(p => {
+      const name = peopleMap[p.person_id]?.name || `Person ${p.person_id}`;
+      const inc  = p.income || {};
+
+      const incomeRows = [
+        { label: t('annSnapSalary'),    val: inc.net_salary_annual },
+        { label: t('annSnapMealV'),     val: inc.meal_vouchers_annual },
+        { label: t('annSnapChild'),     val: inc.child_allowance_annual },
+        { label: t('annSnapPerfBonus'), val: inc.performance_bonus },
+        { label: t('annSnapEoyBonus'),  val: inc.end_of_year_bonus },
+      ].filter(r => r.val > 0).map(r =>
+        `<tr><td class="text-muted small">${r.label}</td><td class="text-end fw-semibold">${fmt(r.val)}</td></tr>`
+      ).join('');
+
+      const contractRows = (p.contracts || []).map(c => {
+        const mo = c.months_active < 12 ? ` <span class="text-muted small">(${c.months_active}\u00a0${t('annSnapMonths')})</span>` : '';
+        return `<tr>
+          <td>${tExp(c)}${mo}</td>
+          <td><span class="badge bg-light text-dark border">${tCat(c)}</span></td>
+          <td class="text-end fw-bold">${fmt(c.annual_cost)}</td>
+        </tr>`;
+      }).join('');
+
+      const periodicRows = (p.periodic_expenses || []).map(e =>
+        `<tr>
+          <td>${tExp(e)}</td>
+          <td><span class="badge bg-light text-dark border">${tCat(e)}</span></td>
+          <td class="text-end fw-bold">${fmt(e.annual_total)}</td>
+        </tr>`
+      ).join('');
+
+      const netBal   = (inc.total_annual_net != null && p.total_annual_expenses != null)
+                       ? round2(inc.total_annual_net - p.total_annual_expenses) : null;
+
+      return `
+      <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header fw-bold">&#128100; ${name}</div>
+          <div class="card-body p-0">
+            <div class="px-3 pt-3 pb-1">
+              <div class="small fw-semibold mb-1 text-uppercase" style="color:#27ae60">&#9650; ${t('annSnapIncome')}</div>
+              <table class="table table-sm mb-2">
+                <tbody>${incomeRows}</tbody>
+                <tfoot class="table-light">
+                  <tr><td class="fw-bold small" style="color:#27ae60">&#9650; ${t('annSnapTotalIncome')}</td>
+                      <td class="text-end fw-bold" style="color:#27ae60">${fmt(inc.total_annual_net)}</td></tr>
+                </tfoot>
+              </table>
+            </div>
+            ${contractRows ? `
+            <div class="px-3 py-2 border-top">
+              <div class="small fw-semibold mb-1 text-uppercase" style="color:#e74c3c">&#9660; ${t('annSnapContracts')}</div>
+              <table class="table table-sm mb-0"><tbody>${contractRows}</tbody></table>
+            </div>` : ''}
+            ${periodicRows ? `
+            <div class="px-3 py-2 border-top">
+              <div class="small fw-semibold mb-1 text-uppercase" style="color:#e74c3c">&#9660; ${t('annSnapPeriodic')}</div>
+              <table class="table table-sm mb-0"><tbody>${periodicRows}</tbody></table>
+            </div>` : ''}
+            <div class="px-3 py-2 border-top bg-light">
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="small fw-semibold" style="color:#e74c3c">&#9660; ${t('annSnapTotalExpenses')}</span>
+                <span class="fw-bold" style="color:#e74c3c">${p.total_annual_expenses != null ? '\u2212\u00a0' + fmt(p.total_annual_expenses) : '\u2014'}</span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top">
+                <span class="fw-semibold">${t('annSnapNetBalance')}</span>
+                <span class="fw-bold fs-5" style="color:${netBal == null ? '#6c757d' : netBal >= 0 ? '#27ae60' : '#e74c3c'}">
+                  ${netBal != null ? (netBal >= 0 ? '&#9650;&nbsp;' : '&#9660;&nbsp;') : ''}${fmt(netBal)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    const summaryHtml = snap.summary ? `
+    <div class="card shadow-sm mt-3" style="border-top:3px solid #4e79a7">
+      <div class="card-body py-3">
+        <div class="row text-center g-3">
+          <div class="col-6 col-md-4">
+            <div class="text-muted small mb-1">${t('annSnapTotalIncome')}</div>
+            <div class="fw-bold" style="color:#27ae60">&#9650; ${fmt(snap.summary.total_annual_net_income)}</div>
+          </div>
+          <div class="col-6 col-md-4">
+            <div class="text-muted small mb-1">${t('annSnapTotalExpenses')}</div>
+            <div class="fw-bold" style="color:#e74c3c">&#9660; ${fmt(snap.summary.total_annual_expenses)}</div>
+          </div>
+          <div class="col-6 col-md-4">
+            <div class="text-muted small mb-1">${t('annSnapNetBalance')}</div>
+            <div class="fw-bold fs-5" style="color:${snap.summary.net_annual_balance >= 0 ? '#27ae60' : '#e74c3c'}">
+              ${snap.summary.net_annual_balance >= 0 ? '&#9650;' : '&#9660;'}&nbsp;${fmt(snap.summary.net_annual_balance)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>` : '';
+
+    container.innerHTML = `
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <button class="btn btn-outline-secondary btn-sm" onclick="navigateAnnualSnapshot(-1)" ${canGoBack ? '' : 'disabled'}>&#8592; ${t('annSnapPrev')}</button>
+        <h5 class="mb-0 fw-bold">${snap.label || snap.year}</h5>
+        <button class="btn btn-outline-secondary btn-sm" onclick="navigateAnnualSnapshot(1)" ${canGoFwd ? '' : 'disabled'}>${t('annSnapNext')} &#8594;</button>
+      </div>
+      <div class="row g-4">${personCards}</div>
+      ${summaryHtml}`;
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  function render() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      el.textContent = t(el.dataset.i18n);
+    });
+
+    // Update rate bar labels on language switch
+    const rbl = document.getElementById('rate-bar-label');
+    if (rbl) rbl.textContent = t('rateBarLabel');
+    const rbs = document.getElementById('rate-bar-source');
+    if (rbs) rbs.textContent = t('rateBarSource');
+
+    // Collapse toggle buttons: label reflects current state
+    document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(btn => {
+      const targetId = btn.getAttribute('data-bs-target')?.replace('#', '');
+      const el = targetId ? document.getElementById(targetId) : null;
+      const expanded = el ? el.classList.contains('show') : false;
+      btn.textContent = t(expanded ? 'sectionCollapse' : 'sectionExpand');
+    });
+
+    document.getElementById('lang-fr').classList.toggle('active', lang === 'fr');
+    document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+    document.getElementById('phase-badge').textContent = t('phaseBadge');
+
+    // Role selector (localhost only)
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      const roleSelector = document.getElementById('role-selector');
+      roleSelector.style.display = '';
+      const select = document.getElementById('role-select');
+      select.innerHTML = permissionsConfig.roles.map(r =>
+        `<option value="${r.id}" ${r.id === activeRole ? 'selected' : ''}>${t('role' + r.id.charAt(0).toUpperCase() + r.id.slice(1))}</option>`
+      ).join('');
+    }
+    const roleBadgeColors = { admin: 'danger', owner: 'primary', consultant: 'warning', public: 'secondary' };
+    const roleBadge = document.getElementById('role-badge');
+    roleBadge.className = `badge bg-${roleBadgeColors[activeRole] || 'secondary'}`;
+    roleBadge.textContent = t('role' + activeRole.charAt(0).toUpperCase() + activeRole.slice(1));
+
+    document.getElementById('perspective-btns').innerHTML = adults.map(p => {
+      const active = activePeople.has(p.id);
+      return `<button type="button"
+        class="btn btn-sm ${active ? 'btn-light' : 'btn-outline-light'}"
+        onclick="togglePerson(${p.id})">${p.name.split(' ')[0]}</button>`;
+    }).join('');
+
+    // Project Overview
+    const completedCount  = project.milestones.filter(m => m.status === 'Completed').length;
+    const totalMilestones = project.milestones.length;
+    const progressPct     = Math.round((completedCount / totalMilestones) * 100);
+    document.getElementById('project-overview').innerHTML = `
+      <div class="row g-3">
+        <div class="col-md-8">
+          <h5 class="fw-bold">${project.name}</h5>
+          <p class="text-muted mb-1">${project.description}</p>
+          <div class="d-flex gap-4 mt-2 small text-muted">
+            <span>&#128197; ${t('labelStart')} <strong>${fmtDate(project.startDate)}</strong></span>
+            <span>&#127919; ${t('labelTarget')} <strong>${fmtDate(project.estimatedEndDate)}</strong></span>
+            <span>&#128182; ${t('labelCurrency')} <strong>${project.currency}</strong></span>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="d-flex justify-content-between mb-1 small">
+            <span>${t('milestonesCompleted')}</span><span>${completedCount} / ${totalMilestones}</span>
+          </div>
+          <div class="progress" style="height:10px">
+            <div class="progress-bar bg-success" style="width:${progressPct}%"></div>
+          </div>
+          <div class="text-end small text-muted mt-1">${progressPct}%</div>
+        </div>
+      </div>`;
+
+    // People (adults)
+    document.getElementById('people-cards').innerHTML = visiblePeople().map(p => {
+      const addr = addressMap[p.address_id];
+      const occ  = p.occupation;
+      return `
+      <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header fw-bold fs-5">&#128100; ${p.name}</div>
+          <div class="card-body">
+            <table class="table table-sm table-borderless mb-0">
+              <tr><th class="text-muted w-40">${t('labelBorn')}</th><td>${fmtDate(p.birth_date)}</td></tr>
+              <tr><th class="text-muted">${t('labelAddress')}</th><td>${fmtAddress(addr)}</td></tr>
+              <tr><th class="text-muted">${t('labelPhone')}</th><td>${p.contact?.phone ?? '\u2014'}</td></tr>
+              <tr><th class="text-muted">${t('labelEmail')}</th><td><a href="mailto:${p.contact?.email}">${p.contact?.email ?? '\u2014'}</a></td></tr>
+              <tr><th class="text-muted">${t('labelCompany')}</th><td>${occ?.company ?? '\u2014'}</td></tr>
+              <tr><th class="text-muted">${t('labelPosition')}</th><td>${occ?.position ?? '\u2014'}</td></tr>
+              <tr><th class="text-muted">${t('labelFunction')}</th><td>${occ?.function ?? '\u2014'}</td></tr>
+              <tr><th class="text-muted">${t('labelLocation')}</th><td>${occ?.location ?? '\u2014'}</td></tr>
+              ${p.national_number_be ? `<tr><th class="text-muted">${t('labelNationalNr')}</th><td><code>${p.national_number_be}</code>${copyBtn(p.national_number_be)}</td></tr>` : ''}
+              ${p.cns_lu ? `<tr><th class="text-muted">${t('labelCNS')}</th><td><code>${p.cns_lu}</code>${copyBtn(p.cns_lu)}</td></tr>` : ''}
+              ${p.id_card ? `<tr><th class="text-muted">${t('labelIDCard')}</th><td><code>${p.id_card.number}</code>${copyBtn(p.id_card.number)} <span class="text-muted small">(${t('labelExpiry')} ${fmtDate(p.id_card.expiry)})</span></td></tr>` : ''}
+            </table>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    // Children — appended into the same people-cards grid
+    const children = people.filter(p => p.role === 'child');
+    const childCards = children.map(child => {
+      const addr      = addressMap[child.address_id];
+      const genderKey = child.gender === 'male' ? 'labelGenderMale' : child.gender === 'female' ? 'labelGenderFemale' : null;
+      return `
+      <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-header fw-bold">&#128103; ${child.name}</div>
+          <div class="card-body">
+            <table class="table table-sm table-borderless mb-0">
+              ${child.gender    ? `<tr><th class="text-muted w-40">${t('labelGender')}</th><td>${genderKey ? t(genderKey) : child.gender}</td></tr>` : ''}
+              ${child.birth_date ? `<tr><th class="text-muted">${t('labelBorn')}</th><td>${fmtDate(child.birth_date)}</td></tr>` : ''}
+              <tr><th class="text-muted">${t('labelAddress')}</th><td>${fmtAddress(addr)}</td></tr>
+              ${child.id_card   ? `<tr><th class="text-muted">${t('labelIDCard')}</th><td><code>${child.id_card.number}</code>${copyBtn(child.id_card.number)} <span class="text-muted small">(${t('labelExpiry')} ${fmtDate(child.id_card.expiry)})</span></td></tr>` : ''}
+            </table>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    if (childCards) {
+      document.getElementById('people-cards').insertAdjacentHTML('beforeend', childCards);
+    }
+
+    // Bank Accounts
+    const bankSection = document.getElementById('section-bank-accounts');
+    if (bankAccounts.length) {
+      bankSection.style.display = '';
+      const peopleMap = Object.fromEntries(people.map(p => [p.id, p]));
+      const accountsByPerson = {};
+      for (const acc of bankAccounts) {
+        if (!accountsByPerson[acc.person_id]) accountsByPerson[acc.person_id] = [];
+        accountsByPerson[acc.person_id].push(acc);
+      }
+      document.getElementById('bank-accounts-cards').innerHTML = Object.entries(accountsByPerson).map(([pid, accounts]) => {
+        const person = peopleMap[parseInt(pid)];
+        const rows = accounts.map(acc => {
+          const typeLabel = acc.type === 'checking' ? t('bankTypeChecking') : acc.type === 'savings' ? t('bankTypeSavings') : acc.type;
+          const cards = acc.cards?.length ? acc.cards.map(c => `<code class="me-1">${c}</code>${copyBtn(c)}`).join('') : '\u2014';
+          return `<tr>
+            <td class="fw-semibold">${acc.bank}${acc.bic ? ` <span class="text-muted small">${acc.bic}</span>` : ''}</td>
+            <td><span class="badge bg-light text-dark border">${acc.country}</span></td>
+            <td><code>${acc.iban}</code>${copyBtn(acc.iban)}</td>
+            <td><span class="badge bg-secondary">${typeLabel}</span></td>
+            <td class="small">${cards}</td>
+          </tr>`;
+        }).join('');
+        return `
+        <div class="card shadow-sm mb-3">
+          <div class="card-header fw-semibold">&#127984; ${person?.name ?? 'Person ' + pid}</div>
+          <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+              <thead class="table-dark"><tr>
+                <th>${t('bankName')}</th><th></th><th>${t('bankIBAN')}</th>
+                <th>${t('bankType')}</th><th>${t('bankCards')}</th>
+              </tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      bankSection.style.display = 'none';
+    }
+
+    // Real Estate & Mortgages
+    renderRealEstate();
+
+    // Employment Contracts
+    renderEmployment();
+
+    // Monthly Situation (Snapshots)
+    renderSnapshotSection();
+
+    // Annual Package
+    renderAnnualSnapshotSection();
+
+    // Timeline
+    document.getElementById('timeline-list').innerHTML = project.milestones.map(m => `
+      <li class="list-group-item">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="fw-semibold">${m.title}</div>
+            <div class="text-muted small">${m.description}${m.notes ? ' \u2014 ' + m.notes : ''}</div>
+            <div class="small mt-1 text-muted">
+              ${m.startDate ? '&#128197; ' + fmtDate(m.startDate) : ''}
+              ${m.endDate   ? ' \u2192 ' + fmtDate(m.endDate) : ''}
+            </div>
+          </div>
+          <div class="ms-3 text-nowrap">${statusBadge(m.status)}</div>
+        </div>
+      </li>`).join('');
+  }
+
+  render();
+  initSnapshots();
+  initAnnualSnapshots();
+  // ── Rate bar ─────────────────────────────────────────────────────────────
+  let _rateChart = null;
+
+  async function initRateBar() {
+    try {
+      const data = await fetch('/api/mortgage-rates').then(r => r.json());
+      if (data.error || !data.rates || !data.rates.length) return;
+
+      const latest    = data.latest;
+      const rateColor = latest < 3 ? '#2ecc71' : latest < 4 ? '#f39c12' : '#e74c3c';
+
+      document.getElementById('rate-bar-label').textContent  = t('rateBarLabel');
+      document.getElementById('rate-bar-source').textContent = t('rateBarSource');
+      document.getElementById('rate-bar-date').textContent   = data.dates[data.dates.length - 1] || '';
+      const valEl = document.getElementById('rate-bar-value');
+      valEl.textContent = latest.toFixed(2) + '\u202f%';
+      valEl.style.color = rateColor;
+
+      const bar = document.getElementById('rate-bar');
+      bar.style.display = 'flex';
+
+      // Add bottom padding to body so content isn't hidden behind bar
+      document.body.style.paddingBottom = '72px';
+
+      const canvas = document.getElementById('rate-chart');
+      if (_rateChart) _rateChart.destroy();
+      _rateChart = new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: data.dates,
+          datasets: [{
+            data: data.rates,
+            borderColor: rateColor,
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: true,
+            backgroundColor: rateColor + '22',
+            tension: 0.3,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: { legend: { display: false }, tooltip: {
+            callbacks: { label: ctx => ctx.parsed.y.toFixed(2) + ' %', title: lbls => lbls[0] },
+          }},
+          scales: {
+            x: { display: false },
+            y: { display: false },
+          },
+        },
+      });
+    } catch (e) {
+      console.warn('Rate bar unavailable:', e.message);
+    }
+  }
+
+  initRateBar();
+
+  // ── Economic Indicators ───────────────────────────────────────────────────
+  const _indCharts = {};
+
+  function indColor(val) {
+    if (val === null || val === undefined) return '#6c757d';
+    if (val <= 0)  return '#2ecc71';  // green — deflation or falling
+    if (val <= 5)  return '#f39c12';  // orange — moderate
+    return '#e74c3c';                 // red — high inflation
+  }
+
+  function makeSparkline(canvasId, labels, values, color, unitFmt) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || values.length < 2) return;
+    if (_indCharts[canvasId]) _indCharts[canvasId].destroy();
+    _indCharts[canvasId] = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          borderColor: color,
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          backgroundColor: color + '22',
+          tension: 0.3,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend: { display: false }, tooltip: {
+          callbacks: { label: ctx => unitFmt(ctx.parsed.y), title: lbls => lbls[0] },
+        }},
+        scales: { x: { display: false }, y: { display: false } },
+      },
+    });
+  }
+
+  function renderIndicatorCard(key, data) {
+    const valEl  = document.getElementById('ind-val-' + key);
+    const dateEl = document.getElementById('ind-date-' + key);
+    if (!valEl || !data) return;
+
+    const latest = data.latest;
+    const color  = indColor(latest);
+    const sign   = latest > 0 ? '+' : '';
+    valEl.textContent = latest !== null ? sign + latest.toFixed(1) + '\u202f%' : '—';
+    valEl.style.color = color;
+    if (dateEl) dateEl.textContent = data.dates[data.dates.length - 1] || '';
+
+    makeSparkline('ind-chart-' + key, data.dates, data.rates, color,
+      v => (v > 0 ? '+' : '') + v.toFixed(1) + ' %');
+
+    // Live market data overlay (heatingOil and sp95)
+    if (data.market) {
+      const mktBlock = document.getElementById('ind-market-' + key);
+      const mktVal   = document.getElementById('ind-mkt-val-' + key);
+      const mktDate  = document.getElementById('ind-mkt-date-' + key);
+      if (mktBlock && mktVal) {
+        const mv = data.market.latest;
+        const unit = data.market.unit || 'EUR';
+        mktVal.textContent = mv !== null ? mv.toFixed(2) + '\u202f' + unit : '—';
+        mktVal.style.color = '#2c3e50';
+        if (mktDate) mktDate.textContent = data.market.dates[data.market.dates.length - 1] || '';
+        makeSparkline('ind-mkt-chart-' + key, data.market.dates, data.market.rates, '#2980b9',
+          v => v.toFixed(2) + ' ' + unit);
+        mktBlock.style.display = '';
+        // Shrink the HICP section visually when market data is present
+        const hicpDiv = document.getElementById('ind-hicp-' + key);
+        if (hicpDiv) hicpDiv.style.borderTop = '1px solid #dee2e6';
+      }
+    }
+  }
+
+  async function initIndicators() {
+    try {
+      const data = await fetch('/api/indicators').then(r => r.json());
+      if (data.error) return;
+      ['electricity', 'heatingOil', 'sp95', 'inflation'].forEach(key => {
+        if (data[key]) renderIndicatorCard(key, data[key]);
+      });
+      document.getElementById('section-indicators').style.display = '';
+    } catch (e) {
+      console.warn('Indicators unavailable:', e.message);
+    }
+  }
+
+  initIndicators();
+
+  // Keep collapse button labels in sync with collapse state
+  document.addEventListener('show.bs.collapse',  e => { const btn = document.querySelector(`[data-bs-target="#${e.target.id}"]`); if (btn) btn.textContent = t('sectionCollapse'); });
+  document.addEventListener('hide.bs.collapse',  e => { const btn = document.querySelector(`[data-bs-target="#${e.target.id}"]`); if (btn) btn.textContent = t('sectionExpand');   });
+</script>
+
+<!-- Fixed bottom rate bar -->
+<div id="rate-bar" style="display:none; position:fixed; bottom:0; left:0; right:0; height:64px;
+     background:#2c3e50; color:#fff; z-index:1050; padding:0 1.5rem;
+     display:none; align-items:center; gap:1.25rem; box-shadow:0 -2px 8px rgba(0,0,0,.35)">
+  <span class="small fw-semibold text-white-50" id="rate-bar-label"></span>
+  <span id="rate-bar-value" style="font-size:1.4rem; font-weight:700; min-width:4rem"></span>
+  <div style="flex:1; max-width:320px; height:44px; position:relative">
+    <canvas id="rate-chart" style="display:block; width:100%; height:44px"></canvas>
+  </div>
+  <span class="badge bg-secondary small" id="rate-bar-date"></span>
+  <span class="badge bg-light text-dark small" id="rate-bar-source"></span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

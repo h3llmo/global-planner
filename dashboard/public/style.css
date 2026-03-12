@@ -1,0 +1,32 @@
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c757d;
+  border-bottom: 2px solid #dee2e6;
+  padding-bottom: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.w-40 { width: 40%; }
+
+.card-header {
+  background-color: #f8f9fa;
+}
+
+.table th {
+  font-weight: 500;
+}
+
+.navbar-brand {
+  font-size: 1.1rem;
+}
+
+/* Salary history toggle chevron */
+.btn-link[aria-expanded="true"]  .toggle-chevron { display: inline-block; transform: rotate(180deg); }
+.btn-link[aria-expanded="false"] .toggle-chevron { display: inline-block; transform: rotate(0deg); }
