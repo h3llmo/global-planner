@@ -4,6 +4,9 @@ node_modules/
 # Generated database — contains personal data, never commit
 finance.db
 
+# Local environment variables — never commit
+.env
+
 # Python caches
 __pycache__/
 *.pyc

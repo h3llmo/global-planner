@@ -25,6 +25,8 @@
         <button type="button" class="btn btn-outline-light" id="lang-fr" onclick="setLang('fr')">FR</button>
         <button type="button" class="btn btn-outline-light" id="lang-en" onclick="setLang('en')">EN</button>
       </div>
+      <!-- Auth: login/logout -->
+      <div id="auth-widget" class="d-flex align-items-center gap-2"></div>
     </div>
   </div>
 </nav>
@@ -220,6 +222,7 @@
   const bankAccounts = __BANK_ACCOUNTS_JSON__;
   const activeRole = __ROLE_JSON__;
   const permissionsConfig = __PERMISSIONS_CONFIG_JSON__;
+  const currentUser = __USER_JSON__;   // {name, email, picture} or null if not authenticated
   const activePerms = new Set(
     (permissionsConfig.roles.find(r => r.id === activeRole) || {}).permissions || []
   );
@@ -1339,14 +1342,25 @@
     document.getElementById('lang-en').classList.toggle('active', lang === 'en');
     document.getElementById('phase-badge').textContent = t('phaseBadge');
 
-    // Role selector (localhost only)
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    // Role selector (authenticated users only)
+    if (currentUser) {
       const roleSelector = document.getElementById('role-selector');
       roleSelector.style.display = '';
       const select = document.getElementById('role-select');
       select.innerHTML = permissionsConfig.roles.map(r =>
         `<option value="${r.id}" ${r.id === activeRole ? 'selected' : ''}>${t('role' + r.id.charAt(0).toUpperCase() + r.id.slice(1))}</option>`
       ).join('');
+    }
+
+    // Auth widget: login button or user avatar + logout
+    const authWidget = document.getElementById('auth-widget');
+    if (currentUser) {
+      authWidget.innerHTML = `
+        ${currentUser.picture ? `<img src="${currentUser.picture}" alt="" width="28" height="28" class="rounded-circle" title="${currentUser.name}">` : ''}
+        <span class="navbar-text text-light small d-none d-md-inline">${currentUser.name}</span>
+        <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>`;
+    } else {
+      authWidget.innerHTML = `<a href="/login" class="btn btn-outline-light btn-sm">Login</a>`;
     }
     const roleBadgeColors = { admin: 'danger', owner: 'primary', consultant: 'warning', public: 'secondary' };
     const roleBadge = document.getElementById('role-badge');
