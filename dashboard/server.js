@@ -5,32 +5,30 @@ const express      = require('express');
 const path         = require('path');
 const fs           = require('fs');
 const cookieParser = require('cookie-parser');
-const { auth, requiresAuth } = require('express-openid-connect');
 const db           = require('./db');
+
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// Resolve base URL: explicit env → Vercel auto-URL → localhost fallback
-const BASE_URL = process.env.BASE_URL ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${PORT}`);
-
-// Auth0 OpenID Connect — authRequired:false keeps the app publicly accessible.
-// Authenticated users unlock role switching; unauthenticated visitors are forced to 'public'.
-app.use(auth({
-  authRequired:    false,
-  auth0Logout:     true,
-  secret:          process.env.AUTH0_SESSION_SECRET,
-  baseURL:         BASE_URL,
-  clientID:        process.env.AUTH0_CLIENT_ID,
-  issuerBaseURL:   process.env.AUTH0_ISSUER_BASE_URL,
-  routes: {
-    // Keep default /login and /logout; also expose /callback (handled automatically)
-    login:    '/login',
-    logout:   '/logout',
-    callback: '/callback',
-  },
-}));
+// Auth0 OpenID Connect — only active in production (Vercel).
+// In development, Auth0 is skipped entirely so role switching works without a login flow.
+let requiresAuth = () => (_req, _res, next) => next(); // no-op factory in dev
+if (IS_PRODUCTION) {
+  const { auth, requiresAuth: _requiresAuth } = require('express-openid-connect');
+  requiresAuth = _requiresAuth;
+  const BASE_URL = process.env.BASE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${PORT}`);
+  app.use(auth({
+    authRequired:  false,
+    auth0Logout:   true,
+    secret:        process.env.AUTH0_SESSION_SECRET,
+    baseURL:       BASE_URL,
+    clientID:      process.env.AUTH0_CLIENT_ID,
+    issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL,
+  }));
+}
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cookieParser());
@@ -49,8 +47,11 @@ app.use((req, res, next) => {
 });
 
 function getActiveRole(req, permissionsConfig) {
-  // Unauthenticated visitors are always 'public' — no cookie accepted
-  if (!req.oidc || !req.oidc.isAuthenticated()) return 'public';
+  const isAuthenticated = IS_PRODUCTION
+    ? (req.oidc && req.oidc.isAuthenticated())
+    : true; // dev: always allow role switching
+
+  if (!isAuthenticated) return 'public';
 
   const cookie = req.cookies && req.cookies.role;
   const validIds = permissionsConfig.roles.map(r => r.id);
@@ -99,7 +100,7 @@ function filterContracts(contracts, perms) {
   if (perms.has('display_amounts')) return contracts;
   return contracts.map(c => ({
     ...c,
-    periods: c.periods.map(p => ({ start_date: p.start_date, end_date: p.end_date })),
+    periods: (c.periods || []).map(p => ({ start_date: p.start_date, end_date: p.end_date })),
   }));
 }
 
@@ -532,8 +533,8 @@ app.get('/', async (req, res) => {
       incomeMap[inc.person_id].push(inc);
     }
 
-    // Expose Auth0 user to the template (name + email only — no sensitive tokens)
-    const oidcUser = req.oidc.isAuthenticated()
+    // Expose Auth0 user to the template (production only)
+    const oidcUser = (IS_PRODUCTION && req.oidc && req.oidc.isAuthenticated())
       ? { name: req.oidc.user.name, email: req.oidc.user.email, picture: req.oidc.user.picture }
       : null;
 
@@ -551,7 +552,8 @@ app.get('/', async (req, res) => {
       .replace('__EMPLOYMENT_JSON__',         JSON.stringify(filteredEmployment))
       .replace('__ROLE_JSON__',               JSON.stringify(activeRole))
       .replace('__PERMISSIONS_CONFIG_JSON__', JSON.stringify(permissionsConfig))
-      .replace('__USER_JSON__',               JSON.stringify(oidcUser));
+      .replace('__USER_JSON__',               JSON.stringify(oidcUser))
+      .replace('__IS_PRODUCTION_JSON__',      JSON.stringify(IS_PRODUCTION));
 
     res.send(html);
   } catch (e) {
