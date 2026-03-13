@@ -495,13 +495,29 @@ planRouter.use(async (req, res, next) => {
     req.activePlan = plan;
 
     if (req.oidc && req.oidc.isAuthenticated() && req.oidc.user.email) {
-      const email = req.oidc.user.email;
+      const email    = req.oidc.user.email;
+      const authUser = req.oidc.user;
+
       // Check if this user is a plan member (person profile with matching auth0_email)
       req.linkedPerson = await db.getPersonByAuth0Email(email) || null;
-      // If not a member, check trusted partner access list in plan.json
+
+      // First-time login: auto-create a person entry from Auth0 profile
       if (!req.linkedPerson) {
-        const entry = (plan.access || []).find(a => a.auth0_email === email);
-        if (entry) req.linkedAccess = entry;
+        try {
+          const displayName = authUser.name || authUser.email;
+          const result = await db.createPerson({
+            name:        displayName,
+            email:       authUser.email,
+            auth0_email: authUser.email,
+          });
+          console.log(`[auth] Auto-created person "${displayName}" (id=${result.id}) for ${email} in plan "${slug}"`);
+          req.linkedPerson = { id: result.id, name: displayName };
+        } catch (e) {
+          // May fail if person already exists (race) or plan has no people table yet — not fatal
+          console.warn(`[auth] Could not auto-create person for ${email}:`, e.message);
+          const entry = (plan.access || []).find(a => a.auth0_email === email);
+          if (entry) req.linkedAccess = entry;
+        }
       }
     }
 
