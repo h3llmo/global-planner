@@ -96,6 +96,9 @@ def upsert_snapshot_to_db(snapshot: dict, snap_type: str):
     """Upsert a snapshot into finance.db. Silently skips if DB not found."""
     if not DB_PATH.exists():
         return
+    if PLAN_DIR is None:
+        return
+    plan_id = PLAN_DIR.name
     try:
         conn = sqlite3.connect(str(DB_PATH))
         year  = snapshot["year"]
@@ -105,19 +108,19 @@ def upsert_snapshot_to_db(snapshot: dict, snap_type: str):
         content = json.dumps(snapshot, ensure_ascii=False)
         if snap_type == "monthly":
             conn.execute(
-                """INSERT INTO snapshots (type, year, month, label, generated_at, content)
-                   VALUES ('monthly', ?, ?, ?, ?, ?)
-                   ON CONFLICT(year, month) WHERE type='monthly'
+                """INSERT INTO snapshots (plan_id, type, year, month, label, generated_at, content)
+                   VALUES (?, 'monthly', ?, ?, ?, ?, ?)
+                   ON CONFLICT(plan_id, year, month) WHERE type='monthly'
                    DO UPDATE SET label=excluded.label, generated_at=excluded.generated_at, content=excluded.content""",
-                (year, month, label, generated_at, content)
+                (plan_id, year, month, label, generated_at, content)
             )
         else:
             conn.execute(
-                """INSERT INTO snapshots (type, year, month, label, generated_at, content)
-                   VALUES ('annual', ?, NULL, ?, ?, ?)
-                   ON CONFLICT(year) WHERE type='annual'
+                """INSERT INTO snapshots (plan_id, type, year, month, label, generated_at, content)
+                   VALUES (?, 'annual', ?, NULL, ?, ?, ?)
+                   ON CONFLICT(plan_id, year) WHERE type='annual'
                    DO UPDATE SET label=excluded.label, generated_at=excluded.generated_at, content=excluded.content""",
-                (year, label, generated_at, content)
+                (plan_id, year, label, generated_at, content)
             )
         conn.commit()
         conn.close()

@@ -74,153 +74,27 @@ def write_json(path: Path, data, indent=2):
 SCHEMA_SQL = """
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE IF NOT EXISTS addresses (
-    id             INTEGER PRIMARY KEY,
-    street_number  TEXT,
-    street_name    TEXT NOT NULL,
-    postal_code    TEXT NOT NULL,
-    city           TEXT NOT NULL,
-    country_code   TEXT NOT NULL,
-    country        TEXT NOT NULL
+-- Global tables (no plan_id)
+CREATE TABLE IF NOT EXISTS budget_plans (
+    id              TEXT PRIMARY KEY,
+    name            TEXT NOT NULL,
+    description     TEXT,
+    currency        TEXT NOT NULL DEFAULT 'EUR',
+    owner_auth0_id  TEXT,
+    created_at      TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS people (
-    id                   INTEGER PRIMARY KEY,
-    name                 TEXT NOT NULL,
-    birth_date           TEXT,
-    gender               TEXT,
-    address_id           INTEGER REFERENCES addresses(id),
-    national_number_be   TEXT,
-    cns_lu               TEXT,
-    id_card_number       TEXT,
-    id_card_expiry       TEXT,
-    phone                TEXT,
-    email                TEXT,
-    auth0_email          TEXT,
-    role                 TEXT,
-    occupation_location  TEXT,
-    occupation_company   TEXT,
-    occupation_position  TEXT
+CREATE TABLE IF NOT EXISTS plan_members (
+    plan_id     TEXT NOT NULL REFERENCES budget_plans(id),
+    person_slug TEXT NOT NULL,
+    PRIMARY KEY (plan_id, person_slug)
 );
 
-CREATE TABLE IF NOT EXISTS properties (
-    id          INTEGER PRIMARY KEY,
-    address_id  INTEGER NOT NULL REFERENCES addresses(id),
-    type        TEXT NOT NULL,
-    status      TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS property_owners (
-    property_id  INTEGER NOT NULL REFERENCES properties(id),
-    person_id    INTEGER NOT NULL REFERENCES people(id),
-    PRIMARY KEY (property_id, person_id)
-);
-
-CREATE TABLE IF NOT EXISTS bank_accounts (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    person_id  INTEGER NOT NULL REFERENCES people(id),
-    bank       TEXT NOT NULL,
-    country    TEXT NOT NULL,
-    iban       TEXT NOT NULL UNIQUE,
-    bic        TEXT,
-    type       TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS bank_cards (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id  INTEGER NOT NULL REFERENCES bank_accounts(id),
-    card_number TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS contracts (
-    id                   INTEGER PRIMARY KEY,
-    title                TEXT NOT NULL,
-    category             TEXT NOT NULL,
-    category_i18n        TEXT,
-    direction            TEXT NOT NULL DEFAULT 'expense',
-    owner_id             INTEGER NOT NULL REFERENCES people(id),
-    property_id          INTEGER REFERENCES properties(id),
-    nominal              REAL,
-    taeg                 REAL,
-    consultant_relevant  INTEGER NOT NULL DEFAULT 1,
-    notes                TEXT,
-    employment_start     TEXT,
-    contract_type        TEXT,
-    employer_address_id  INTEGER REFERENCES addresses(id)
-);
-
-CREATE TABLE IF NOT EXISTS contract_periods (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    contract_id   INTEGER NOT NULL REFERENCES contracts(id),
-    monthly_cost  REAL NOT NULL,
-    gross_monthly REAL,
-    start_date    TEXT,
-    end_date      TEXT,
-    rate          REAL,
-    rate_type     TEXT
-);
-
-CREATE TABLE IF NOT EXISTS periodic_expenses (
-    id                   INTEGER PRIMARY KEY,
-    title                TEXT NOT NULL,
-    title_i18n           TEXT,
-    category             TEXT NOT NULL,
-    category_i18n        TEXT,
-    owner_id             INTEGER NOT NULL REFERENCES people(id),
-    property_id          INTEGER REFERENCES properties(id),
-    consultant_relevant  INTEGER NOT NULL DEFAULT 1
-);
-
-CREATE TABLE IF NOT EXISTS periodic_expense_payments (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    expense_id  INTEGER NOT NULL REFERENCES periodic_expenses(id),
-    label       TEXT NOT NULL,
-    amount      REAL NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS mortgages (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    contract_ref      TEXT NOT NULL UNIQUE,
-    contract_id       INTEGER REFERENCES contracts(id),
-    owner_id          INTEGER NOT NULL REFERENCES people(id),
-    property_id       INTEGER NOT NULL REFERENCES properties(id),
-    nominal           REAL,
-    rate              REAL,
-    taeg              REAL,
-    months            INTEGER,
-    monthly_payment   REAL,
-    first_payment     TEXT,
-    last_payment      TEXT,
-    effective_date    TEXT,
-    offer_date        TEXT,
-    total_amount      REAL,
-    total_interest    REAL,
-    total_accessory   REAL,
-    total_insurance   REAL,
-    capital_amortized REAL
-);
-
-CREATE TABLE IF NOT EXISTS incomes (
-    id                          INTEGER PRIMARY KEY AUTOINCREMENT,
-    person_id                   INTEGER NOT NULL REFERENCES people(id),
-    year                        INTEGER NOT NULL,
-    avg_gross_monthly_salary    REAL,
-    avg_net_monthly_salary      REAL,
-    health_insurance            INTEGER,
-    transportation_allowance    REAL,
-    meal_vouchers               REAL,
-    performance_bonus_gross     REAL,
-    performance_bonus_net       REAL,
-    end_of_year_bonus_gross     REAL,
-    end_of_year_bonus_net       REAL,
-    child_allowance             REAL,
-    UNIQUE (person_id, year)
-);
-
-CREATE TABLE IF NOT EXISTS income_consultant_benefits (
-    income_id    INTEGER NOT NULL REFERENCES incomes(id),
-    benefit_key  TEXT NOT NULL,
-    PRIMARY KEY (income_id, benefit_key)
+CREATE TABLE IF NOT EXISTS budget_plan_access (
+    plan_id         TEXT NOT NULL REFERENCES budget_plans(id),
+    auth0_email     TEXT NOT NULL,
+    role            TEXT NOT NULL DEFAULT 'consultant',
+    PRIMARY KEY (plan_id, auth0_email)
 );
 
 CREATE TABLE IF NOT EXISTS permissions (
@@ -241,8 +115,187 @@ CREATE TABLE IF NOT EXISTS role_permissions (
     PRIMARY KEY (role_id, permission_id)
 );
 
+-- Per-plan tables (all have plan_id)
+CREATE TABLE IF NOT EXISTS addresses (
+    plan_id        TEXT NOT NULL REFERENCES budget_plans(id),
+    id             INTEGER NOT NULL,
+    street_number  TEXT,
+    street_name    TEXT NOT NULL,
+    postal_code    TEXT NOT NULL,
+    city           TEXT NOT NULL,
+    country_code   TEXT NOT NULL,
+    country        TEXT NOT NULL,
+    PRIMARY KEY (plan_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS people (
+    plan_id              TEXT NOT NULL REFERENCES budget_plans(id),
+    id                   INTEGER NOT NULL,
+    name                 TEXT NOT NULL,
+    birth_date           TEXT,
+    gender               TEXT,
+    address_id           INTEGER,
+    national_number_be   TEXT,
+    cns_lu               TEXT,
+    id_card_number       TEXT,
+    id_card_expiry       TEXT,
+    phone                TEXT,
+    email                TEXT,
+    auth0_email          TEXT,
+    role                 TEXT,
+    occupation_location  TEXT,
+    occupation_company   TEXT,
+    occupation_position  TEXT,
+    PRIMARY KEY (plan_id, id),
+    FOREIGN KEY (plan_id, address_id) REFERENCES addresses(plan_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS properties (
+    plan_id     TEXT NOT NULL REFERENCES budget_plans(id),
+    id          INTEGER NOT NULL,
+    address_id  INTEGER NOT NULL,
+    type        TEXT NOT NULL,
+    status      TEXT NOT NULL,
+    PRIMARY KEY (plan_id, id),
+    FOREIGN KEY (plan_id, address_id) REFERENCES addresses(plan_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS property_owners (
+    plan_id     TEXT NOT NULL REFERENCES budget_plans(id),
+    property_id INTEGER NOT NULL,
+    person_id   INTEGER NOT NULL,
+    PRIMARY KEY (plan_id, property_id, person_id),
+    FOREIGN KEY (plan_id, property_id) REFERENCES properties(plan_id, id),
+    FOREIGN KEY (plan_id, person_id)   REFERENCES people(plan_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS bank_accounts (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id    TEXT NOT NULL REFERENCES budget_plans(id),
+    person_id  INTEGER NOT NULL,
+    bank       TEXT NOT NULL,
+    country    TEXT NOT NULL,
+    iban       TEXT NOT NULL,
+    bic        TEXT,
+    type       TEXT NOT NULL,
+    UNIQUE (plan_id, iban),
+    FOREIGN KEY (plan_id, person_id) REFERENCES people(plan_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS bank_cards (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id  INTEGER NOT NULL REFERENCES bank_accounts(id),
+    card_number TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS contracts (
+    plan_id              TEXT NOT NULL REFERENCES budget_plans(id),
+    id                   INTEGER NOT NULL,
+    title                TEXT NOT NULL,
+    category             TEXT NOT NULL,
+    category_i18n        TEXT,
+    direction            TEXT NOT NULL DEFAULT 'expense',
+    owner_id             INTEGER NOT NULL,
+    property_id          INTEGER,
+    nominal              REAL,
+    taeg                 REAL,
+    consultant_relevant  INTEGER NOT NULL DEFAULT 1,
+    notes                TEXT,
+    employment_start     TEXT,
+    contract_type        TEXT,
+    employer_address_id  INTEGER,
+    PRIMARY KEY (plan_id, id),
+    FOREIGN KEY (plan_id, owner_id) REFERENCES people(plan_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS contract_periods (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id       TEXT NOT NULL REFERENCES budget_plans(id),
+    contract_id   INTEGER NOT NULL,
+    monthly_cost  REAL NOT NULL,
+    gross_monthly REAL,
+    start_date    TEXT,
+    end_date      TEXT,
+    rate          REAL,
+    rate_type     TEXT,
+    FOREIGN KEY (plan_id, contract_id) REFERENCES contracts(plan_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS periodic_expenses (
+    plan_id              TEXT NOT NULL REFERENCES budget_plans(id),
+    id                   INTEGER NOT NULL,
+    title                TEXT NOT NULL,
+    title_i18n           TEXT,
+    category             TEXT NOT NULL,
+    category_i18n        TEXT,
+    owner_id             INTEGER NOT NULL,
+    property_id          INTEGER,
+    consultant_relevant  INTEGER NOT NULL DEFAULT 1,
+    PRIMARY KEY (plan_id, id),
+    FOREIGN KEY (plan_id, owner_id) REFERENCES people(plan_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS periodic_expense_payments (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id     TEXT NOT NULL REFERENCES budget_plans(id),
+    expense_id  INTEGER NOT NULL,
+    label       TEXT NOT NULL,
+    amount      REAL NOT NULL,
+    FOREIGN KEY (plan_id, expense_id) REFERENCES periodic_expenses(plan_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS mortgages (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id           TEXT NOT NULL REFERENCES budget_plans(id),
+    contract_ref      TEXT NOT NULL,
+    contract_id       INTEGER,
+    owner_id          INTEGER NOT NULL,
+    property_id       INTEGER NOT NULL,
+    nominal           REAL,
+    rate              REAL,
+    taeg              REAL,
+    months            INTEGER,
+    monthly_payment   REAL,
+    first_payment     TEXT,
+    last_payment      TEXT,
+    effective_date    TEXT,
+    offer_date        TEXT,
+    total_amount      REAL,
+    total_interest    REAL,
+    total_accessory   REAL,
+    total_insurance   REAL,
+    capital_amortized REAL,
+    UNIQUE (plan_id, contract_ref)
+);
+
+CREATE TABLE IF NOT EXISTS incomes (
+    id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id                     TEXT NOT NULL REFERENCES budget_plans(id),
+    person_id                   INTEGER NOT NULL,
+    year                        INTEGER NOT NULL,
+    avg_gross_monthly_salary    REAL,
+    avg_net_monthly_salary      REAL,
+    health_insurance            INTEGER,
+    transportation_allowance    REAL,
+    meal_vouchers               REAL,
+    performance_bonus_gross     REAL,
+    performance_bonus_net       REAL,
+    end_of_year_bonus_gross     REAL,
+    end_of_year_bonus_net       REAL,
+    child_allowance             REAL,
+    UNIQUE (plan_id, person_id, year),
+    FOREIGN KEY (plan_id, person_id) REFERENCES people(plan_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS income_consultant_benefits (
+    income_id    INTEGER NOT NULL REFERENCES incomes(id),
+    benefit_key  TEXT NOT NULL,
+    PRIMARY KEY (income_id, benefit_key)
+);
+
 CREATE TABLE IF NOT EXISTS timeline_projects (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id             TEXT NOT NULL REFERENCES budget_plans(id),
     name                TEXT NOT NULL,
     description         TEXT,
     start_date          TEXT,
@@ -251,7 +304,8 @@ CREATE TABLE IF NOT EXISTS timeline_projects (
 );
 
 CREATE TABLE IF NOT EXISTS timeline_milestones (
-    id          INTEGER PRIMARY KEY,
+    plan_id     TEXT NOT NULL REFERENCES budget_plans(id),
+    id          INTEGER NOT NULL,
     project_id  INTEGER NOT NULL REFERENCES timeline_projects(id),
     title       TEXT NOT NULL,
     description TEXT,
@@ -260,12 +314,14 @@ CREATE TABLE IF NOT EXISTS timeline_milestones (
     status      TEXT,
     priority    TEXT,
     budget      REAL,
-    notes       TEXT
+    notes       TEXT,
+    PRIMARY KEY (plan_id, id)
 );
 
--- Snapshots: content stored as JSON text (always read whole, no deep querying needed)
+-- Snapshots: content stored as JSON text
 CREATE TABLE IF NOT EXISTS snapshots (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id      TEXT NOT NULL REFERENCES budget_plans(id),
     type         TEXT NOT NULL CHECK(type IN ('monthly', 'annual')),
     year         INTEGER NOT NULL,
     month        INTEGER,
@@ -273,37 +329,16 @@ CREATE TABLE IF NOT EXISTS snapshots (
     generated_at TEXT NOT NULL,
     content      TEXT NOT NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_monthly ON snapshots(year, month) WHERE type = 'monthly';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_annual  ON snapshots(year)        WHERE type = 'annual';
-
-CREATE TABLE IF NOT EXISTS budget_plans (
-    id              TEXT PRIMARY KEY,
-    name            TEXT NOT NULL,
-    description     TEXT,
-    currency        TEXT NOT NULL DEFAULT 'EUR',
-    owner_auth0_id  TEXT,
-    created_at      TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS plan_members (
-    person_slug     TEXT NOT NULL,
-    PRIMARY KEY (person_slug)
-);
-
-CREATE TABLE IF NOT EXISTS budget_plan_access (
-    plan_id         TEXT NOT NULL REFERENCES budget_plans(id),
-    auth0_email     TEXT NOT NULL,
-    role            TEXT NOT NULL DEFAULT 'consultant',
-    PRIMARY KEY (plan_id, auth0_email)
-);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_monthly ON snapshots(plan_id, year, month) WHERE type = 'monthly';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_annual  ON snapshots(plan_id, year)        WHERE type = 'annual';
 
 CREATE TABLE IF NOT EXISTS virtual_contracts (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    plan_id       TEXT NOT NULL,
+    plan_id       TEXT NOT NULL REFERENCES budget_plans(id),
     title         TEXT NOT NULL,
     category      TEXT NOT NULL,
     direction     TEXT NOT NULL DEFAULT 'expense',
-    owner_id      INTEGER REFERENCES people(id),
+    owner_id      INTEGER,
     monthly_cost  REAL,
     start_date    TEXT,
     end_date      TEXT,
@@ -312,8 +347,8 @@ CREATE TABLE IF NOT EXISTS virtual_contracts (
 
 CREATE TABLE IF NOT EXISTS virtual_incomes (
     id                     INTEGER PRIMARY KEY AUTOINCREMENT,
-    plan_id                TEXT NOT NULL,
-    person_id              INTEGER REFERENCES people(id),
+    plan_id                TEXT NOT NULL REFERENCES budget_plans(id),
+    person_id              INTEGER,
     year                   INTEGER NOT NULL,
     avg_net_monthly_salary REAL,
     notes                  TEXT
@@ -321,10 +356,10 @@ CREATE TABLE IF NOT EXISTS virtual_incomes (
 
 CREATE TABLE IF NOT EXISTS virtual_periodic_expenses (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    plan_id   TEXT NOT NULL,
+    plan_id   TEXT NOT NULL REFERENCES budget_plans(id),
     title     TEXT NOT NULL,
     category  TEXT NOT NULL,
-    owner_id  INTEGER REFERENCES people(id),
+    owner_id  INTEGER,
     payments  TEXT,
     notes     TEXT
 );
@@ -335,7 +370,6 @@ DROP_SQL = """
 PRAGMA foreign_keys = OFF;
 DROP TABLE IF EXISTS income_consultant_benefits;
 DROP TABLE IF EXISTS incomes;
-DROP TABLE IF EXISTS mortgage_quarterly_costs;
 DROP TABLE IF EXISTS mortgages;
 DROP TABLE IF EXISTS contract_periods;
 DROP TABLE IF EXISTS contracts;
@@ -354,6 +388,7 @@ DROP TABLE IF EXISTS timeline_milestones;
 DROP TABLE IF EXISTS timeline_projects;
 DROP TABLE IF EXISTS snapshots;
 DROP TABLE IF EXISTS budget_plan_access;
+DROP TABLE IF EXISTS plan_members;
 DROP TABLE IF EXISTS budget_plans;
 DROP TABLE IF EXISTS virtual_contracts;
 DROP TABLE IF EXISTS virtual_incomes;
@@ -362,20 +397,47 @@ PRAGMA foreign_keys = ON;
 """
 
 
+def delete_plan_data(conn, plan_id: str):
+    """Delete all data for a specific plan (used before reimporting)."""
+    # Delete in child-first order to satisfy FK constraints
+    conn.execute("DELETE FROM income_consultant_benefits WHERE income_id IN (SELECT id FROM incomes WHERE plan_id=?)", (plan_id,))
+    conn.execute("DELETE FROM bank_cards WHERE account_id IN (SELECT id FROM bank_accounts WHERE plan_id=?)", (plan_id,))
+    conn.execute("DELETE FROM virtual_periodic_expenses WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM virtual_incomes WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM virtual_contracts WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM snapshots WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM timeline_milestones WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM timeline_projects WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM incomes WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM mortgages WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM periodic_expense_payments WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM periodic_expenses WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM contract_periods WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM contracts WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM bank_accounts WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM property_owners WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM properties WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM people WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM addresses WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM plan_members WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM budget_plan_access WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM budget_plans WHERE id=?", (plan_id,))
+
+
 # ── Import helpers ────────────────────────────────────────────────────────────
 
-def import_addresses(conn, data):
+def import_addresses(conn, data, plan_id):
     if not data: return 0
     rows = data.get('addresses', [])
     conn.executemany(
-        "INSERT INTO addresses (id, street_number, street_name, postal_code, city, country_code, country) VALUES (?,?,?,?,?,?,?)",
-        [(r['id'], r.get('street_number'), r['street_name'], r['postal_code'], r['city'], r['country_code'], r['country'])
+        "INSERT INTO addresses (plan_id, id, street_number, street_name, postal_code, city, country_code, country) VALUES (?,?,?,?,?,?,?,?)",
+        [(plan_id, r['id'], r.get('street_number'), r['street_name'], r['postal_code'], r['city'], r['country_code'], r['country'])
          for r in rows]
     )
     return len(rows)
 
 
-def import_people(conn, data):
+def import_people(conn, data, plan_id):
     if not data: return 0
     rows = data.get('people', [])
     for r in rows:
@@ -383,11 +445,11 @@ def import_people(conn, data):
         contact = r.get('contact') or {}
         occ = r.get('occupation') or {}
         conn.execute(
-            """INSERT INTO people (id, name, birth_date, gender, address_id, national_number_be, cns_lu,
+            """INSERT INTO people (plan_id, id, name, birth_date, gender, address_id, national_number_be, cns_lu,
                id_card_number, id_card_expiry, phone, email, auth0_email, role,
                occupation_location, occupation_company, occupation_position)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (r['id'], r['name'], r.get('birth_date'), r.get('gender'), r.get('address_id'),
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (plan_id, r['id'], r['name'], r.get('birth_date'), r.get('gender'), r.get('address_id'),
              r.get('national_number_be'), r.get('cns_lu'),
              card.get('number'), card.get('expiry'),
              contact.get('phone'), contact.get('email'), r.get('auth0_email'), r.get('role'),
@@ -396,26 +458,29 @@ def import_people(conn, data):
     return len(rows)
 
 
-def import_real_estate(conn, data):
+def import_real_estate(conn, data, plan_id):
     if not data: return 0
     rows = data.get('properties', [])
     for r in rows:
         conn.execute(
-            "INSERT INTO properties (id, address_id, type, status) VALUES (?,?,?,?)",
-            (r['id'], r['address_id'], r['type'], r['status'])
+            "INSERT INTO properties (plan_id, id, address_id, type, status) VALUES (?,?,?,?,?)",
+            (plan_id, r['id'], r['address_id'], r['type'], r['status'])
         )
         for pid in r.get('owner_ids', []):
-            conn.execute("INSERT INTO property_owners (property_id, person_id) VALUES (?,?)", (r['id'], pid))
+            # Only insert if person exists in this plan
+            exists = conn.execute("SELECT 1 FROM people WHERE plan_id=? AND id=?", (plan_id, pid)).fetchone()
+            if exists:
+                conn.execute("INSERT INTO property_owners (plan_id, property_id, person_id) VALUES (?,?,?)", (plan_id, r['id'], pid))
     return len(rows)
 
 
-def import_bank_accounts(conn, data):
+def import_bank_accounts(conn, data, plan_id):
     if not data: return 0
     rows = data.get('bank_accounts', [])
     for r in rows:
         cur = conn.execute(
-            "INSERT INTO bank_accounts (person_id, bank, country, iban, bic, type) VALUES (?,?,?,?,?,?)",
-            (r['person_id'], r['bank'], r['country'], r['iban'], r.get('bic'), r['type'])
+            "INSERT INTO bank_accounts (plan_id, person_id, bank, country, iban, bic, type) VALUES (?,?,?,?,?,?,?)",
+            (plan_id, r['person_id'], r['bank'], r['country'], r['iban'], r.get('bic'), r['type'])
         )
         account_id = cur.lastrowid
         for card in (r.get('cards') or []):
@@ -423,7 +488,7 @@ def import_bank_accounts(conn, data):
     return len(rows)
 
 
-def import_contracts(conn, data):
+def import_contracts(conn, data, plan_id):
     if not data: return 0
     rows = data.get('contracts', [])
     for r in rows:
@@ -431,59 +496,57 @@ def import_contracts(conn, data):
         consultant_int = 1 if consultant is None or consultant is True else 0
         direction = r.get('direction', 'expense')
         conn.execute(
-            """INSERT INTO contracts (id, title, category, category_i18n, direction, owner_id, property_id, nominal, taeg,
-               consultant_relevant, notes, employment_start, contract_type, employer_address_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (r['id'], r['title'], r['category'], r.get('category_i18n'), direction, r['owner_id'],
+            """INSERT INTO contracts (plan_id, id, title, category, category_i18n, direction, owner_id, property_id, nominal, taeg,
+               consultant_relevant, notes, employment_start, contract_type, employer_address_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (plan_id, r['id'], r['title'], r['category'], r.get('category_i18n'), direction, r['owner_id'],
              r.get('property_id'), r.get('nominal'), r.get('taeg'), consultant_int, r.get('notes'),
              r.get('employment_start'), r.get('contract_type'), r.get('employer_address_id'))
         )
         for plan in r.get('periods', r.get('plans', [])):
             conn.execute(
-                """INSERT INTO contract_periods (contract_id, monthly_cost, gross_monthly, start_date, end_date, rate, rate_type)
-                   VALUES (?,?,?,?,?,?,?)""",
-                (r['id'], plan['monthly_cost'], plan.get('gross_monthly'), plan.get('start_date'), plan.get('end_date'),
+                """INSERT INTO contract_periods (plan_id, contract_id, monthly_cost, gross_monthly, start_date, end_date, rate, rate_type)
+                   VALUES (?,?,?,?,?,?,?,?)""",
+                (plan_id, r['id'], plan['monthly_cost'], plan.get('gross_monthly'), plan.get('start_date'), plan.get('end_date'),
                  plan.get('rate'), plan.get('rate_type'))
             )
     return len(rows)
 
 
-def import_periodic_expenses(conn, data):
+def import_periodic_expenses(conn, data, plan_id):
     if not data: return 0
     rows = data.get('periodic_expenses', [])
     for r in rows:
         consultant = r.get('consultant_relevant')
         consultant_int = 1 if consultant is None or consultant is True else 0
         conn.execute(
-            """INSERT INTO periodic_expenses (id, title, title_i18n, category, category_i18n,
-               owner_id, property_id, consultant_relevant) VALUES (?,?,?,?,?,?,?,?)""",
-            (r['id'], r['title'], r.get('title_i18n'), r['category'], r.get('category_i18n'),
+            """INSERT INTO periodic_expenses (plan_id, id, title, title_i18n, category, category_i18n,
+               owner_id, property_id, consultant_relevant) VALUES (?,?,?,?,?,?,?,?,?)""",
+            (plan_id, r['id'], r['title'], r.get('title_i18n'), r['category'], r.get('category_i18n'),
              r['owner_id'], r.get('property_id'), consultant_int)
         )
         for pmt in r.get('payments', []):
             conn.execute(
-                "INSERT INTO periodic_expense_payments (expense_id, label, amount) VALUES (?,?,?)",
-                (r['id'], pmt['label'], pmt['amount'])
+                "INSERT INTO periodic_expense_payments (plan_id, expense_id, label, amount) VALUES (?,?,?,?)",
+                (plan_id, r['id'], pmt['label'], pmt['amount'])
             )
     return len(rows)
 
 
-def import_mortgages(conn, data):
+def import_mortgages(conn, data, plan_id):
     if not data: return 0
     rows = data if isinstance(data, list) else []
-    # Resolve contract_id from contracts table by matching title pattern or ref
     for r in rows:
-        # Try to match by contract reference in contracts notes or by known mapping
         contract_id = None
-        cur = conn.execute("SELECT id FROM contracts WHERE notes LIKE ?", (f"%{r['contract']}%",))
+        cur = conn.execute("SELECT id FROM contracts WHERE plan_id=? AND notes LIKE ?", (plan_id, f"%{r['contract']}%",))
         row = cur.fetchone()
         if row:
             contract_id = row[0]
         conn.execute(
-            """INSERT INTO mortgages (contract_ref, contract_id, owner_id, property_id, nominal, rate, taeg,
+            """INSERT INTO mortgages (plan_id, contract_ref, contract_id, owner_id, property_id, nominal, rate, taeg,
                months, monthly_payment, first_payment, last_payment, effective_date, offer_date,
                total_amount, total_interest, total_accessory, total_insurance, capital_amortized)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (r['contract'], contract_id, r['owner_id'], r['property_id'],
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (plan_id, r['contract'], contract_id, r['owner_id'], r['property_id'],
              r.get('nominal'), r.get('rate'), r.get('taeg'), r.get('months'),
              r.get('monthly_payment'), r.get('first_payment'), r.get('last_payment'),
              r.get('effective_date'), r.get('offer_date'),
@@ -493,7 +556,7 @@ def import_mortgages(conn, data):
     return len(rows)
 
 
-def import_incomes(conn, data):
+def import_incomes(conn, data, plan_id):
     if not data: return 0
     rows = data.get('incomes', [])
     for r in rows:
@@ -501,12 +564,12 @@ def import_incomes(conn, data):
         pb = b.get('performance_bonus') or {}
         eyb = b.get('end_of_year_bonus') or {}
         cur = conn.execute(
-            """INSERT INTO incomes (person_id, year, avg_gross_monthly_salary, avg_net_monthly_salary,
+            """INSERT INTO incomes (plan_id, person_id, year, avg_gross_monthly_salary, avg_net_monthly_salary,
                health_insurance, transportation_allowance, meal_vouchers,
                performance_bonus_gross, performance_bonus_net,
                end_of_year_bonus_gross, end_of_year_bonus_net, child_allowance)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-            (r['person_id'], int(r['year']), r.get('avg_gross_monthly_salary'),
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (plan_id, r['person_id'], int(r['year']), r.get('avg_gross_monthly_salary'),
              r.get('avg_net_monthly_salary'),
              1 if b.get('health_insurance') else 0,
              b.get('transportation_allowance'), b.get('meal_vouchers'),
@@ -527,62 +590,60 @@ def import_permissions(conn, data):
     if not data: return 0
     default_role = data.get('default_role', 'public')
     for p in data.get('permissions', []):
-        conn.execute("INSERT INTO permissions (id, description) VALUES (?,?)", (p['id'], p['description']))
+        conn.execute("INSERT OR IGNORE INTO permissions (id, description) VALUES (?,?)", (p['id'], p['description']))
     for r in data.get('roles', []):
         conn.execute(
-            "INSERT INTO roles (id, label, description, is_default) VALUES (?,?,?,?)",
+            "INSERT OR IGNORE INTO roles (id, label, description, is_default) VALUES (?,?,?,?)",
             (r['id'], r['label'], r.get('description'), 1 if r['id'] == default_role else 0)
         )
         for perm_id in r.get('permissions', []):
-            conn.execute("INSERT INTO role_permissions (role_id, permission_id) VALUES (?,?)", (r['id'], perm_id))
+            conn.execute("INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?,?)", (r['id'], perm_id))
     return len(data.get('roles', []))
 
 
-def import_timeline(conn, data):
+def import_timeline(conn, data, plan_id):
     if not data: return 0
     proj = data.get('project', {})
     cur = conn.execute(
-        "INSERT INTO timeline_projects (name, description, start_date, estimated_end_date, currency) VALUES (?,?,?,?,?)",
-        (proj['name'], proj.get('description'), proj.get('startDate'), proj.get('estimatedEndDate'), proj.get('currency', 'EUR'))
+        "INSERT INTO timeline_projects (plan_id, name, description, start_date, estimated_end_date, currency) VALUES (?,?,?,?,?,?)",
+        (plan_id, proj['name'], proj.get('description'), proj.get('startDate'), proj.get('estimatedEndDate'), proj.get('currency', 'EUR'))
     )
     project_id = cur.lastrowid
     milestones = proj.get('milestones', [])
     for m in milestones:
         conn.execute(
-            """INSERT INTO timeline_milestones (id, project_id, title, description, start_date, end_date,
-               status, priority, budget, notes) VALUES (?,?,?,?,?,?,?,?,?,?)""",
-            (m['id'], project_id, m['title'], m.get('description'), m.get('startDate'), m.get('endDate'),
+            """INSERT INTO timeline_milestones (plan_id, id, project_id, title, description, start_date, end_date,
+               status, priority, budget, notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+            (plan_id, m['id'], project_id, m['title'], m.get('description'), m.get('startDate'), m.get('endDate'),
              m.get('status'), m.get('priority'), m.get('budget'), m.get('notes'))
         )
     return len(milestones)
 
 
-def import_snapshots(conn, snapshots_dir: Path):
+def import_snapshots(conn, snapshots_dir: Path, plan_id: str):
     count = 0
     if not snapshots_dir.exists():
         return 0
-    # Monthly snapshots
     for f in snapshots_dir.glob('????-??.json'):
         with open(f, 'r', encoding='utf-8') as fh:
             snap = json.load(fh)
         conn.execute(
-            """INSERT OR REPLACE INTO snapshots (type, year, month, label, generated_at, content)
-               VALUES ('monthly', ?, ?, ?, ?, ?)""",
-            (snap['year'], snap['month'], snap['label'],
+            """INSERT OR REPLACE INTO snapshots (plan_id, type, year, month, label, generated_at, content)
+               VALUES (?,  'monthly', ?, ?, ?, ?, ?)""",
+            (plan_id, snap['year'], snap['month'], snap['label'],
              snap.get('generated_at', datetime.now(timezone.utc).isoformat()),
              json.dumps(snap))
         )
         count += 1
-    # Annual snapshots
     annual_dir = snapshots_dir / 'annual'
     if annual_dir.exists():
         for f in annual_dir.glob('????.json'):
             with open(f, 'r', encoding='utf-8') as fh:
                 snap = json.load(fh)
             conn.execute(
-                """INSERT OR REPLACE INTO snapshots (type, year, month, label, generated_at, content)
-                   VALUES ('annual', ?, NULL, ?, ?, ?)""",
-                (snap['year'], snap['label'],
+                """INSERT OR REPLACE INTO snapshots (plan_id, type, year, month, label, generated_at, content)
+                   VALUES (?, 'annual', ?, NULL, ?, ?, ?)""",
+                (plan_id, snap['year'], snap['label'],
                  snap.get('generated_at', datetime.now(timezone.utc).isoformat()),
                  json.dumps(snap))
             )
@@ -801,15 +862,16 @@ def export_snapshots(conn, snapshots_dir: Path):
 
 def import_plan(conn, plan_json_path: Path):
     """Import plan metadata from plan.json into budget_plans table.
-    Returns the list of member slugs (or empty list).
+    Returns the plan_id string and the list of member slugs (or empty list).
     """
     if not plan_json_path.exists():
-        return []
+        return None, []
     with open(plan_json_path, 'r', encoding='utf-8') as f:
         p = json.load(f)
+    plan_id = p['id']
     conn.execute(
         "INSERT OR REPLACE INTO budget_plans (id, name, description, currency, owner_auth0_id, created_at) VALUES (?,?,?,?,?,?)",
-        (p['id'], p['name'], p.get('description'), p.get('currency', 'EUR'),
+        (plan_id, p['name'], p.get('description'), p.get('currency', 'EUR'),
          p.get('owner_auth0_id'), p.get('created_at', datetime.now(timezone.utc).isoformat()))
     )
     for entry in p.get('access', []):
@@ -817,51 +879,51 @@ def import_plan(conn, plan_json_path: Path):
         if email:
             conn.execute(
                 "INSERT OR REPLACE INTO budget_plan_access (plan_id, auth0_email, role) VALUES (?,?,?)",
-                (p['id'], email, entry.get('role', 'consultant'))
+                (plan_id, email, entry.get('role', 'consultant'))
             )
     for slug in p.get('members', []):
-        conn.execute("INSERT OR IGNORE INTO plan_members (person_slug) VALUES (?)", (slug,))
-    return p.get('members', [])
+        conn.execute("INSERT OR IGNORE INTO plan_members (plan_id, person_slug) VALUES (?,?)", (plan_id, slug))
+    return plan_id, p.get('members', [])
 
 
-def import_person_profile(conn, person_dir: Path):
+def import_person_profile(conn, person_dir: Path, plan_id: str):
     """Import just the person profile (addresses must exist first)."""
     profile = read_json_file(person_dir / 'profile.json')
     if profile is None:
         return
-    import_people(conn, {'people': [profile]})
+    import_people(conn, {'people': [profile]}, plan_id)
 
 
-def import_person_financial_data(conn, person_dir: Path):
+def import_person_financial_data(conn, person_dir: Path, plan_id: str):
     """Import financial data for a person (people + properties must exist first)."""
-    import_bank_accounts(conn, read_json_file(person_dir / 'bank_accounts.json'))
-    import_contracts(conn, read_json_file(person_dir / 'contracts.json'))
-    import_periodic_expenses(conn, read_json_file(person_dir / 'periodic_expenses.json'))
-    import_incomes(conn, read_json_file(person_dir / 'incomes.json'))
+    import_bank_accounts(conn, read_json_file(person_dir / 'bank_accounts.json'), plan_id)
+    import_contracts(conn, read_json_file(person_dir / 'contracts.json'), plan_id)
+    import_periodic_expenses(conn, read_json_file(person_dir / 'periodic_expenses.json'), plan_id)
+    import_incomes(conn, read_json_file(person_dir / 'incomes.json'), plan_id)
 
 
-def import_person_data(conn, person_dir: Path):
+def import_person_data(conn, person_dir: Path, plan_id: str):
     """Import all data for one person (addresses + properties must exist first)."""
-    import_person_profile(conn, person_dir)
-    import_person_financial_data(conn, person_dir)
+    import_person_profile(conn, person_dir, plan_id)
+    import_person_financial_data(conn, person_dir, plan_id)
 
 
-def import_shared_data_pre(conn, shared_dir: Path):
+def import_shared_data_pre(conn, shared_dir: Path, plan_id: str):
     """Import shared data that must precede people: addresses and permissions."""
-    import_addresses(conn, read_json_file(shared_dir / 'addresses.json'))
+    import_addresses(conn, read_json_file(shared_dir / 'addresses.json'), plan_id)
     import_permissions(conn, read_json_file(shared_dir / 'permissions.json'))
 
 
-def import_shared_real_estate(conn, shared_dir: Path):
+def import_shared_real_estate(conn, shared_dir: Path, plan_id: str):
     """Import real_estate (needs people for property_owners)."""
-    import_real_estate(conn, read_json_file(shared_dir / 'real_estate.json'))
+    import_real_estate(conn, read_json_file(shared_dir / 'real_estate.json'), plan_id)
 
 
-def import_shared_mortgages(conn, shared_dir: Path):
+def import_shared_mortgages(conn, shared_dir: Path, plan_id: str):
     """Import mortgages (needs people, properties, and contracts)."""
     mort_data = read_json_file(shared_dir / 'mortgages.json')
     if mort_data is not None:
-        import_mortgages(conn, mort_data if isinstance(mort_data, list) else mort_data.get('mortgages', []))
+        import_mortgages(conn, mort_data if isinstance(mort_data, list) else mort_data.get('mortgages', []), plan_id)
 
 
 def import_virtual_data(conn, plan_dir: Path, plan_id: str):
@@ -902,65 +964,87 @@ def cmd_create(args):
     db_path       = Path(args.db)
     snapshots_dir = Path(args.snapshots) if args.snapshots else SNAPSHOTS_DIR / plan_dir.name
 
-    print(f"Creating database: {db_path}")
-    print(f"Plan dir:          {plan_dir}")
-    print(f"People dir:        {PEOPLE_DIR}")
-    print(f"Shared dir:        {SHARED_DIR}")
+    print(f"Importing plan into database: {db_path}")
+    print(f"Plan dir:   {plan_dir}")
+    print(f"People dir: {PEOPLE_DIR}")
+    print(f"Shared dir: {SHARED_DIR}")
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     conn = sqlite3.connect(str(db_path))
-    conn.executescript(DROP_SQL)
+    # Ensure schema exists (no-op if tables already exist)
     conn.executescript(SCHEMA_SQL)
 
-    # 1. Import plan metadata and get member slugs
-    members = import_plan(conn, plan_dir / 'plan.json')
-    plan_id = plan_dir.name
+    # 1. Import plan metadata; delete stale data first
+    plan_id_from_file, members = import_plan(conn, plan_dir / 'plan.json')
+    plan_id = plan_id_from_file or plan_dir.name
+    print(f"  Clearing existing data for plan: {plan_id}")
+    # We need to delete AFTER knowing the plan_id but BEFORE reimporting.
+    # Since import_plan used INSERT OR REPLACE, delete non-plan-metadata rows now.
+    conn.execute("DELETE FROM income_consultant_benefits WHERE income_id IN (SELECT id FROM incomes WHERE plan_id=?)", (plan_id,))
+    conn.execute("DELETE FROM bank_cards WHERE account_id IN (SELECT id FROM bank_accounts WHERE plan_id=?)", (plan_id,))
+    conn.execute("DELETE FROM virtual_periodic_expenses WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM virtual_incomes WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM virtual_contracts WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM snapshots WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM timeline_milestones WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM timeline_projects WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM incomes WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM mortgages WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM periodic_expense_payments WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM periodic_expenses WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM contract_periods WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM contracts WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM bank_accounts WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM property_owners WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM properties WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM people WHERE plan_id=?", (plan_id,))
+    conn.execute("DELETE FROM addresses WHERE plan_id=?", (plan_id,))
     print(f"  ✓ plan: 1 record  (members: {members})")
 
     # 2. Import shared pre-people data (addresses, permissions)
-    print("  Importing shared pre-people data…")
-    import_shared_data_pre(conn, SHARED_DIR)
+    print("  Importing shared pre-people data...")
+    import_shared_data_pre(conn, SHARED_DIR, plan_id)
 
     # 3. Import person profiles (needs addresses)
-    print("  Importing people profiles…")
+    print("  Importing people profiles...")
     for slug in members:
-        person_dir = PEOPLE_DIR / slug
-        if not person_dir.exists():
-            print(f"  [WARN] People dir not found: {person_dir}")
+        person_dir_path = PEOPLE_DIR / slug
+        if not person_dir_path.exists():
+            print(f"  [WARN] People dir not found: {person_dir_path}")
             continue
-        import_person_profile(conn, person_dir)
+        import_person_profile(conn, person_dir_path, plan_id)
         print(f"    ✓ {slug}")
 
     # 4. Import real_estate (needs people for property_owners)
-    print("  Importing real estate…")
-    import_shared_real_estate(conn, SHARED_DIR)
+    print("  Importing real estate...")
+    import_shared_real_estate(conn, SHARED_DIR, plan_id)
 
     # 5. Import financial data per person (needs people + properties)
-    print("  Importing financial data…")
+    print("  Importing financial data...")
     for slug in members:
-        person_dir = PEOPLE_DIR / slug
-        if not person_dir.exists():
+        person_dir_path = PEOPLE_DIR / slug
+        if not person_dir_path.exists():
             continue
-        import_person_financial_data(conn, person_dir)
+        import_person_financial_data(conn, person_dir_path, plan_id)
         print(f"    ✓ {slug}")
 
     # 6. Import mortgages (needs people, properties, contracts)
-    print("  Importing mortgages…")
-    import_shared_mortgages(conn, SHARED_DIR)
+    print("  Importing mortgages...")
+    import_shared_mortgages(conn, SHARED_DIR, plan_id)
 
-    # 4. Import plan-specific data
-    n_tl = import_timeline(conn, read_json_file(plan_dir / 'timeline.json'))
+    # 7. Import plan-specific data
+    n_tl = import_timeline(conn, read_json_file(plan_dir / 'timeline.json'), plan_id)
     print(f"  ✓ timeline: {n_tl} milestones")
 
     import_virtual_data(conn, plan_dir, plan_id)
     print(f"  ✓ virtual data imported")
 
-    n_snap = import_snapshots(conn, snapshots_dir)
+    n_snap = import_snapshots(conn, snapshots_dir, plan_id)
     print(f"  ✓ snapshots: {n_snap} files")
 
     conn.commit()
     conn.close()
-    print(f"\nDatabase created at: {db_path}")
+    print(f"\nDone: plan '{plan_id}' imported into {db_path}")
 
 
 def cmd_export(args):
