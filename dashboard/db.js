@@ -555,7 +555,7 @@ async function getBankAccounts() {
   const bank_accounts = accounts.map(a => {
     const cards = query(db, 'SELECT card_number FROM bank_cards WHERE account_id=?', [a.id])
       .map(r => r.card_number);
-    const entry = { person_id: a.person_id, bank: a.bank, country: a.country, iban: a.iban, type: a.type };
+    const entry = { id: a.id, person_id: a.person_id, bank: a.bank, country: a.country, iban: a.iban, type: a.type };
     if (a.bic)        entry.bic   = a.bic;
     if (cards.length) entry.cards = cards;
     return entry;
@@ -622,13 +622,13 @@ async function getPeriodicExpenses() {
 async function getMortgages() {
   const db   = await getDb();
   const rows = query(db,
-    `SELECT contract_ref, owner_id, property_id, nominal, rate, taeg, months,
+    `SELECT id, contract_ref, owner_id, property_id, nominal, rate, taeg, months,
       monthly_payment, first_payment, last_payment, effective_date, offer_date,
       total_amount, total_interest, total_accessory, total_insurance, capital_amortized
      FROM mortgages WHERE plan_id=? ORDER BY id`,
     [_activePlanSlug]);
   return rows.map(r => {
-    const entry = { contract: r.contract_ref, owner_id: r.owner_id, property_id: r.property_id };
+    const entry = { id: r.id, contract: r.contract_ref, owner_id: r.owner_id, property_id: r.property_id };
     const fields = ['nominal','rate','taeg','months','monthly_payment','first_payment','last_payment',
                     'effective_date','offer_date','total_amount','total_interest','total_accessory',
                     'total_insurance','capital_amortized'];
@@ -651,7 +651,7 @@ async function getIncomes() {
     const benefits = query(db,
       'SELECT benefit_key FROM income_consultant_benefits WHERE income_id=?', [r.id])
       .map(b => b.benefit_key);
-    const entry = { person_id: r.person_id, year: String(r.year),
+    const entry = { id: r.id, person_id: r.person_id, year: String(r.year),
                     avg_gross_monthly_salary: r.avg_gross_monthly_salary,
                     avg_net_monthly_salary:   r.avg_net_monthly_salary };
     if (benefits.length) entry.consultant_relevant_benefits = benefits;
@@ -774,6 +774,332 @@ function listPeople() {
     });
 }
 
+// ── Write helpers ──────────────────────────────────────────────────────────────
+
+function _nextId(db, table) {
+  const row = queryOne(db, `SELECT COALESCE(MAX(id), 0) + 1 AS next FROM ${table} WHERE plan_id=?`, [_activePlanSlug]);
+  return row ? row.next : 1;
+}
+
+async function createAddress(data) {
+  const db = await getDb();
+  const id = _nextId(db, 'addresses');
+  db.run(
+    'INSERT INTO addresses (plan_id,id,street_number,street_name,postal_code,city,country_code,country) VALUES (?,?,?,?,?,?,?,?)',
+    [_activePlanSlug, id, data.street_number||null, data.street_name, data.postal_code, data.city, data.country_code, data.country]
+  );
+  _persistDb(); return { id };
+}
+
+async function updateAddress(id, data) {
+  const db = await getDb();
+  db.run(
+    'UPDATE addresses SET street_number=?,street_name=?,postal_code=?,city=?,country_code=?,country=? WHERE plan_id=? AND id=?',
+    [data.street_number||null, data.street_name, data.postal_code, data.city, data.country_code, data.country, _activePlanSlug, Number(id)]
+  );
+  _persistDb();
+}
+
+async function deleteAddress(id) {
+  const db = await getDb();
+  db.run('DELETE FROM addresses WHERE plan_id=? AND id=?', [_activePlanSlug, Number(id)]);
+  _persistDb();
+}
+
+async function createPerson(data) {
+  const db = await getDb();
+  const id = _nextId(db, 'people');
+  db.run(
+    `INSERT INTO people (plan_id,id,name,birth_date,gender,address_id,national_number_be,cns_lu,
+      id_card_number,id_card_expiry,phone,email,auth0_email,role,
+      occupation_location,occupation_company,occupation_position)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [_activePlanSlug, id, data.name, data.birth_date||null, data.gender||null, data.address_id||null,
+     data.national_number_be||null, data.cns_lu||null, data.id_card_number||null, data.id_card_expiry||null,
+     data.phone||null, data.email||null, data.auth0_email||null, data.role||null,
+     data.occupation_location||null, data.occupation_company||null, data.occupation_position||null]
+  );
+  _persistDb(); return { id };
+}
+
+async function updatePerson(id, data) {
+  const db = await getDb();
+  db.run(
+    `UPDATE people SET name=?,birth_date=?,gender=?,address_id=?,national_number_be=?,cns_lu=?,
+      id_card_number=?,id_card_expiry=?,phone=?,email=?,auth0_email=?,role=?,
+      occupation_location=?,occupation_company=?,occupation_position=?
+     WHERE plan_id=? AND id=?`,
+    [data.name, data.birth_date||null, data.gender||null, data.address_id||null,
+     data.national_number_be||null, data.cns_lu||null, data.id_card_number||null, data.id_card_expiry||null,
+     data.phone||null, data.email||null, data.auth0_email||null, data.role||null,
+     data.occupation_location||null, data.occupation_company||null, data.occupation_position||null,
+     _activePlanSlug, Number(id)]
+  );
+  _persistDb();
+}
+
+async function deletePerson(id) {
+  const db = await getDb();
+  db.run('DELETE FROM people WHERE plan_id=? AND id=?', [_activePlanSlug, Number(id)]);
+  _persistDb();
+}
+
+async function createProperty(data) {
+  const db = await getDb();
+  const id = _nextId(db, 'properties');
+  db.run('INSERT INTO properties (plan_id,id,address_id,type,status) VALUES (?,?,?,?,?)',
+    [_activePlanSlug, id, data.address_id, data.type, data.status]);
+  for (const oid of (data.owner_ids || []))
+    db.run('INSERT OR IGNORE INTO property_owners (plan_id,property_id,person_id) VALUES (?,?,?)', [_activePlanSlug, id, oid]);
+  _persistDb(); return { id };
+}
+
+async function updateProperty(id, data) {
+  const db = await getDb();
+  db.run('UPDATE properties SET address_id=?,type=?,status=? WHERE plan_id=? AND id=?',
+    [data.address_id, data.type, data.status, _activePlanSlug, Number(id)]);
+  db.run('DELETE FROM property_owners WHERE plan_id=? AND property_id=?', [_activePlanSlug, Number(id)]);
+  for (const oid of (data.owner_ids || []))
+    db.run('INSERT OR IGNORE INTO property_owners (plan_id,property_id,person_id) VALUES (?,?,?)', [_activePlanSlug, Number(id), oid]);
+  _persistDb();
+}
+
+async function deleteProperty(id) {
+  const db = await getDb();
+  db.run('DELETE FROM property_owners WHERE plan_id=? AND property_id=?', [_activePlanSlug, Number(id)]);
+  db.run('DELETE FROM properties WHERE plan_id=? AND id=?', [_activePlanSlug, Number(id)]);
+  _persistDb();
+}
+
+async function createBankAccount(data) {
+  const db = await getDb();
+  db.run('INSERT INTO bank_accounts (plan_id,person_id,bank,country,iban,bic,type) VALUES (?,?,?,?,?,?,?)',
+    [_activePlanSlug, data.person_id, data.bank, data.country, data.iban, data.bic||null, data.type]);
+  _persistDb();
+}
+
+async function updateBankAccount(id, data) {
+  const db = await getDb();
+  db.run('UPDATE bank_accounts SET person_id=?,bank=?,country=?,iban=?,bic=?,type=? WHERE id=? AND plan_id=?',
+    [data.person_id, data.bank, data.country, data.iban, data.bic||null, data.type, Number(id), _activePlanSlug]);
+  _persistDb();
+}
+
+async function deleteBankAccount(id) {
+  const db = await getDb();
+  db.run('DELETE FROM bank_cards WHERE account_id=?', [Number(id)]);
+  db.run('DELETE FROM bank_accounts WHERE id=? AND plan_id=?', [Number(id), _activePlanSlug]);
+  _persistDb();
+}
+
+async function createContract(data) {
+  const db = await getDb();
+  const id = _nextId(db, 'contracts');
+  db.run(
+    `INSERT INTO contracts (plan_id,id,title,category,category_i18n,direction,owner_id,property_id,
+      nominal,taeg,consultant_relevant,notes,employment_start,contract_type,employer_address_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [_activePlanSlug, id, data.title, data.category, data.category_i18n||null,
+     data.direction||'expense', data.owner_id, data.property_id||null,
+     data.nominal||null, data.taeg||null, data.consultant_relevant!==false?1:0,
+     data.notes||null, data.employment_start||null, data.contract_type||null, data.employer_address_id||null]
+  );
+  for (const p of (data.periods || [])) {
+    db.run('INSERT INTO contract_periods (plan_id,contract_id,monthly_cost,gross_monthly,start_date,end_date,rate,rate_type) VALUES (?,?,?,?,?,?,?,?)',
+      [_activePlanSlug, id, p.monthly_cost, p.gross_monthly||null, p.start_date||null, p.end_date||null, p.rate||null, p.rate_type||null]);
+  }
+  _persistDb(); return { id };
+}
+
+async function updateContract(id, data) {
+  const db = await getDb();
+  db.run(
+    `UPDATE contracts SET title=?,category=?,category_i18n=?,direction=?,owner_id=?,property_id=?,
+      nominal=?,taeg=?,consultant_relevant=?,notes=?,employment_start=?,contract_type=?,employer_address_id=?
+     WHERE plan_id=? AND id=?`,
+    [data.title, data.category, data.category_i18n||null, data.direction||'expense', data.owner_id,
+     data.property_id||null, data.nominal||null, data.taeg||null, data.consultant_relevant!==false?1:0,
+     data.notes||null, data.employment_start||null, data.contract_type||null, data.employer_address_id||null,
+     _activePlanSlug, Number(id)]
+  );
+  if (data.periods !== undefined) {
+    db.run('DELETE FROM contract_periods WHERE plan_id=? AND contract_id=?', [_activePlanSlug, Number(id)]);
+    for (const p of (data.periods || [])) {
+      db.run('INSERT INTO contract_periods (plan_id,contract_id,monthly_cost,gross_monthly,start_date,end_date,rate,rate_type) VALUES (?,?,?,?,?,?,?,?)',
+        [_activePlanSlug, Number(id), p.monthly_cost, p.gross_monthly||null, p.start_date||null, p.end_date||null, p.rate||null, p.rate_type||null]);
+    }
+  }
+  _persistDb();
+}
+
+async function deleteContract(id) {
+  const db = await getDb();
+  db.run('DELETE FROM contract_periods WHERE plan_id=? AND contract_id=?', [_activePlanSlug, Number(id)]);
+  db.run('DELETE FROM contracts WHERE plan_id=? AND id=?', [_activePlanSlug, Number(id)]);
+  _persistDb();
+}
+
+async function createPeriodicExpense(data) {
+  const db = await getDb();
+  const id = _nextId(db, 'periodic_expenses');
+  db.run(
+    `INSERT INTO periodic_expenses (plan_id,id,title,title_i18n,category,category_i18n,owner_id,property_id,consultant_relevant)
+     VALUES (?,?,?,?,?,?,?,?,?)`,
+    [_activePlanSlug, id, data.title, data.title_i18n||null, data.category, data.category_i18n||null,
+     data.owner_id, data.property_id||null, data.consultant_relevant!==false?1:0]
+  );
+  for (const p of (data.payments || [])) {
+    db.run('INSERT INTO periodic_expense_payments (plan_id,expense_id,label,amount) VALUES (?,?,?,?)',
+      [_activePlanSlug, id, p.label, p.amount]);
+  }
+  _persistDb(); return { id };
+}
+
+async function updatePeriodicExpense(id, data) {
+  const db = await getDb();
+  db.run(
+    `UPDATE periodic_expenses SET title=?,title_i18n=?,category=?,category_i18n=?,owner_id=?,property_id=?,consultant_relevant=?
+     WHERE plan_id=? AND id=?`,
+    [data.title, data.title_i18n||null, data.category, data.category_i18n||null, data.owner_id,
+     data.property_id||null, data.consultant_relevant!==false?1:0, _activePlanSlug, Number(id)]
+  );
+  if (data.payments !== undefined) {
+    db.run('DELETE FROM periodic_expense_payments WHERE plan_id=? AND expense_id=?', [_activePlanSlug, Number(id)]);
+    for (const p of (data.payments || [])) {
+      db.run('INSERT INTO periodic_expense_payments (plan_id,expense_id,label,amount) VALUES (?,?,?,?)',
+        [_activePlanSlug, Number(id), p.label, p.amount]);
+    }
+  }
+  _persistDb();
+}
+
+async function deletePeriodicExpense(id) {
+  const db = await getDb();
+  db.run('DELETE FROM periodic_expense_payments WHERE plan_id=? AND expense_id=?', [_activePlanSlug, Number(id)]);
+  db.run('DELETE FROM periodic_expenses WHERE plan_id=? AND id=?', [_activePlanSlug, Number(id)]);
+  _persistDb();
+}
+
+async function createMortgage(data) {
+  const db = await getDb();
+  db.run(
+    `INSERT INTO mortgages (plan_id,contract_ref,contract_id,owner_id,property_id,nominal,rate,taeg,months,
+      monthly_payment,first_payment,last_payment,effective_date,offer_date,
+      total_amount,total_interest,total_accessory,total_insurance,capital_amortized)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [_activePlanSlug, data.contract_ref, data.contract_id||null, data.owner_id, data.property_id,
+     data.nominal||null, data.rate||null, data.taeg||null, data.months||null, data.monthly_payment||null,
+     data.first_payment||null, data.last_payment||null, data.effective_date||null, data.offer_date||null,
+     data.total_amount||null, data.total_interest||null, data.total_accessory||null,
+     data.total_insurance||null, data.capital_amortized||null]
+  );
+  _persistDb();
+}
+
+async function updateMortgage(id, data) {
+  const db = await getDb();
+  db.run(
+    `UPDATE mortgages SET contract_ref=?,owner_id=?,property_id=?,nominal=?,rate=?,taeg=?,months=?,
+      monthly_payment=?,first_payment=?,last_payment=?,effective_date=?,offer_date=?,
+      total_amount=?,total_interest=?,total_accessory=?,total_insurance=?,capital_amortized=?
+     WHERE id=? AND plan_id=?`,
+    [data.contract_ref, data.owner_id, data.property_id, data.nominal||null, data.rate||null,
+     data.taeg||null, data.months||null, data.monthly_payment||null, data.first_payment||null,
+     data.last_payment||null, data.effective_date||null, data.offer_date||null, data.total_amount||null,
+     data.total_interest||null, data.total_accessory||null, data.total_insurance||null,
+     data.capital_amortized||null, Number(id), _activePlanSlug]
+  );
+  _persistDb();
+}
+
+async function deleteMortgage(id) {
+  const db = await getDb();
+  db.run('DELETE FROM mortgages WHERE id=? AND plan_id=?', [Number(id), _activePlanSlug]);
+  _persistDb();
+}
+
+async function createIncome(data) {
+  const db = await getDb();
+  db.run(
+    `INSERT INTO incomes (plan_id,person_id,year,avg_gross_monthly_salary,avg_net_monthly_salary,
+      health_insurance,transportation_allowance,meal_vouchers,performance_bonus_gross,performance_bonus_net,
+      end_of_year_bonus_gross,end_of_year_bonus_net,child_allowance)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    [_activePlanSlug, data.person_id, data.year, data.avg_gross_monthly_salary||null, data.avg_net_monthly_salary||null,
+     data.health_insurance?1:0, data.transportation_allowance||null, data.meal_vouchers||null,
+     data.performance_bonus_gross||null, data.performance_bonus_net||null,
+     data.end_of_year_bonus_gross||null, data.end_of_year_bonus_net||null, data.child_allowance||null]
+  );
+  const row = queryOne(await getDb(), 'SELECT id FROM incomes WHERE plan_id=? AND person_id=? AND year=?', [_activePlanSlug, data.person_id, data.year]);
+  if (row) {
+    for (const k of (data.consultant_relevant_benefits || []))
+      db.run('INSERT OR IGNORE INTO income_consultant_benefits (income_id,benefit_key) VALUES (?,?)', [row.id, k]);
+  }
+  _persistDb();
+}
+
+async function updateIncome(id, data) {
+  const db = await getDb();
+  db.run(
+    `UPDATE incomes SET person_id=?,year=?,avg_gross_monthly_salary=?,avg_net_monthly_salary=?,
+      health_insurance=?,transportation_allowance=?,meal_vouchers=?,performance_bonus_gross=?,performance_bonus_net=?,
+      end_of_year_bonus_gross=?,end_of_year_bonus_net=?,child_allowance=?
+     WHERE id=? AND plan_id=?`,
+    [data.person_id, data.year, data.avg_gross_monthly_salary||null, data.avg_net_monthly_salary||null,
+     data.health_insurance?1:0, data.transportation_allowance||null, data.meal_vouchers||null,
+     data.performance_bonus_gross||null, data.performance_bonus_net||null,
+     data.end_of_year_bonus_gross||null, data.end_of_year_bonus_net||null, data.child_allowance||null,
+     Number(id), _activePlanSlug]
+  );
+  db.run('DELETE FROM income_consultant_benefits WHERE income_id=?', [Number(id)]);
+  for (const k of (data.consultant_relevant_benefits || []))
+    db.run('INSERT OR IGNORE INTO income_consultant_benefits (income_id,benefit_key) VALUES (?,?)', [Number(id), k]);
+  _persistDb();
+}
+
+async function deleteIncome(id) {
+  const db = await getDb();
+  db.run('DELETE FROM income_consultant_benefits WHERE income_id=?', [Number(id)]);
+  db.run('DELETE FROM incomes WHERE id=? AND plan_id=?', [Number(id), _activePlanSlug]);
+  _persistDb();
+}
+
+async function createMilestone(data) {
+  const db = await getDb();
+  const id = _nextId(db, 'timeline_milestones');
+  const proj = queryOne(db, 'SELECT id FROM timeline_projects WHERE plan_id=? LIMIT 1', [_activePlanSlug]);
+  if (!proj) {
+    db.run('INSERT INTO timeline_projects (plan_id,name,currency) VALUES (?,?,?)', [_activePlanSlug, 'Timeline', 'EUR']);
+  }
+  const project = queryOne(db, 'SELECT id FROM timeline_projects WHERE plan_id=? LIMIT 1', [_activePlanSlug]);
+  db.run(
+    `INSERT INTO timeline_milestones (plan_id,id,project_id,title,description,start_date,end_date,status,priority,budget,notes)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+    [_activePlanSlug, id, project.id, data.title, data.description||null,
+     data.start_date||null, data.end_date||null, data.status||'planned', data.priority||'medium',
+     data.budget||null, data.notes||null]
+  );
+  _persistDb(); return { id };
+}
+
+async function updateMilestone(id, data) {
+  const db = await getDb();
+  db.run(
+    `UPDATE timeline_milestones SET title=?,description=?,start_date=?,end_date=?,status=?,priority=?,budget=?,notes=?
+     WHERE plan_id=? AND id=?`,
+    [data.title, data.description||null, data.start_date||null, data.end_date||null,
+     data.status||'planned', data.priority||'medium', data.budget||null, data.notes||null,
+     _activePlanSlug, Number(id)]
+  );
+  _persistDb();
+}
+
+async function deleteMilestone(id) {
+  const db = await getDb();
+  db.run('DELETE FROM timeline_milestones WHERE plan_id=? AND id=?', [_activePlanSlug, Number(id)]);
+  _persistDb();
+}
+
 module.exports = {
   initDb,
   initAllPlans,
@@ -799,4 +1125,14 @@ module.exports = {
   getDb,
   query,
   queryOne,
+  persistDb: _persistDb,
+  createAddress, updateAddress, deleteAddress,
+  createPerson, updatePerson, deletePerson,
+  createProperty, updateProperty, deleteProperty,
+  createBankAccount, updateBankAccount, deleteBankAccount,
+  createContract, updateContract, deleteContract,
+  createPeriodicExpense, updatePeriodicExpense, deletePeriodicExpense,
+  createMortgage, updateMortgage, deleteMortgage,
+  createIncome, updateIncome, deleteIncome,
+  createMilestone, updateMilestone, deleteMilestone,
 };

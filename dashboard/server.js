@@ -601,6 +601,134 @@ planRouter.post('/api/snapshots/generate', async (req, res) => {
   }
 });
 
+// ── CRUD API Routes ────────────────────────────────────────────────────────────
+
+// Addresses
+planRouter.post('/api/addresses', async (req, res) => {
+  try { res.status(201).json(await db.createAddress(req.body)); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.put('/api/addresses/:id', async (req, res) => {
+  try { await db.updateAddress(req.params.id, req.body); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.delete('/api/addresses/:id', async (req, res) => {
+  try { await db.deleteAddress(req.params.id); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// People
+planRouter.post('/api/people', async (req, res) => {
+  try { res.status(201).json(await db.createPerson(req.body)); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.put('/api/people/:id', async (req, res) => {
+  try { await db.updatePerson(req.params.id, req.body); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.delete('/api/people/:id', async (req, res) => {
+  try { await db.deletePerson(req.params.id); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Properties
+planRouter.post('/api/properties', async (req, res) => {
+  try { res.status(201).json(await db.createProperty(req.body)); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.put('/api/properties/:id', async (req, res) => {
+  try { await db.updateProperty(req.params.id, req.body); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.delete('/api/properties/:id', async (req, res) => {
+  try { await db.deleteProperty(req.params.id); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Bank Accounts
+planRouter.post('/api/bank-accounts', async (req, res) => {
+  try { await db.createBankAccount(req.body); res.status(201).json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.put('/api/bank-accounts/:id', async (req, res) => {
+  try { await db.updateBankAccount(req.params.id, req.body); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.delete('/api/bank-accounts/:id', async (req, res) => {
+  try { await db.deleteBankAccount(req.params.id); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Contracts
+planRouter.post('/api/contracts', async (req, res) => {
+  try { res.status(201).json(await db.createContract(req.body)); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.put('/api/contracts/:id', async (req, res) => {
+  try { await db.updateContract(req.params.id, req.body); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.delete('/api/contracts/:id', async (req, res) => {
+  try { await db.deleteContract(req.params.id); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Periodic Expenses
+planRouter.post('/api/periodic-expenses', async (req, res) => {
+  try { res.status(201).json(await db.createPeriodicExpense(req.body)); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.put('/api/periodic-expenses/:id', async (req, res) => {
+  try { await db.updatePeriodicExpense(req.params.id, req.body); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.delete('/api/periodic-expenses/:id', async (req, res) => {
+  try { await db.deletePeriodicExpense(req.params.id); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Mortgages
+planRouter.post('/api/mortgages', async (req, res) => {
+  try { await db.createMortgage(req.body); res.status(201).json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.put('/api/mortgages/:id', async (req, res) => {
+  try { await db.updateMortgage(req.params.id, req.body); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.delete('/api/mortgages/:id', async (req, res) => {
+  try { await db.deleteMortgage(req.params.id); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Incomes
+planRouter.post('/api/incomes', async (req, res) => {
+  try { await db.createIncome(req.body); res.status(201).json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.put('/api/incomes/:id', async (req, res) => {
+  try { await db.updateIncome(req.params.id, req.body); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.delete('/api/incomes/:id', async (req, res) => {
+  try { await db.deleteIncome(req.params.id); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Timeline Milestones
+planRouter.post('/api/milestones', async (req, res) => {
+  try { res.status(201).json(await db.createMilestone(req.body)); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.put('/api/milestones/:id', async (req, res) => {
+  try { await db.updateMilestone(req.params.id, req.body); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+planRouter.delete('/api/milestones/:id', async (req, res) => {
+  try { await db.deleteMilestone(req.params.id); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 planRouter.get('/', async (req, res) => {
   try {
     const permissionsConfig = await db.getPermissionsConfig();
