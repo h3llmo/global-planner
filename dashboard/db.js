@@ -19,7 +19,6 @@ const DB_PATH      = path.join(__dirname, 'finance.db');
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
 const DATA_MANAGER    = path.join(PROJECT_ROOT, 'apps', 'DataManager.py');
 const SNAPSHOT_SCRIPT = path.join(PROJECT_ROOT, 'apps', 'SnapshotSituation.py');
-const DATA_DIR        = path.join(PROJECT_ROOT, 'data');
 
 // SQLite schema — mirrors DataManager.py SCHEMA_SQL (kept in sync manually)
 const SCHEMA_SQL = `
@@ -83,13 +82,14 @@ async function initDb() {
   // Development: always reimport from JSON data files
   console.log('[db] Development mode — importing data from JSON files…');
   try {
+    const planArg = process.env.BUDGET_PLAN ? `--plan "${process.env.BUDGET_PLAN}"` : '';
     console.log('[db] Regenerating snapshots…');
-    execSync(`python "${SNAPSHOT_SCRIPT}"`, {
+    execSync(`python "${SNAPSHOT_SCRIPT}" ${planArg}`, {
       stdio: 'inherit',
       cwd: PROJECT_ROOT,
       env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
     });
-    execSync(`python "${DATA_MANAGER}" --db "${DB_PATH}" --data "${DATA_DIR}" create`, {
+    execSync(`python "${DATA_MANAGER}" --db "${DB_PATH}" ${planArg} create`, {
       stdio: 'inherit',
       cwd: PROJECT_ROOT,
       env: { ...process.env, PYTHONIOENCODING: 'utf-8' },

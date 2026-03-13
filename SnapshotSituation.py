@@ -2,17 +2,20 @@
 """SnapshotSituation.py — generate monthly financial situation snapshots.
 
 Usage:
-    python apps/SnapshotSituation.py             # regenerate all months from data/snapshot_months.json
-    python apps/SnapshotSituation.py YYYY MM     # generate a single specific month
+    python apps/SnapshotSituation.py                      # regenerate all months (auto-detects first plan)
+    python apps/SnapshotSituation.py YYYY MM              # generate a single specific month
+    python apps/SnapshotSituation.py --plan <slug>        # specify plan slug
+    python apps/SnapshotSituation.py --plan <slug> YYYY MM
 
 Reads:
-    data/contracts.json          — fixed recurring monthly bills
-    data/periodic_expenses.json  — irregular yearly payments (averaged /12)
-    data/incomes.json            — salary and benefit records
-    data/snapshot_months.json    — list of months to generate in batch mode
+    data/budget-plans/<plan>/contracts.json
+    data/budget-plans/<plan>/periodic_expenses.json
+    data/budget-plans/<plan>/incomes.json
+    data/budget-plans/<plan>/snapshot_months.json
 
 Writes:
-    output/snapshots/YYYY-MM.json
+    output/snapshots/<plan>/YYYY-MM.json
+    output/snapshots/<plan>/annual/YYYY.json
 """
 
 import sys
@@ -23,14 +26,35 @@ from pathlib import Path
 
 SCRIPT_DIR   = Path(__file__).parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-DATA_DIR     = PROJECT_ROOT / "data"
-OUTPUT_DIR   = PROJECT_ROOT / "output" / "snapshots"
 DB_PATH      = PROJECT_ROOT / "apps" / "dashboard" / "finance.db"
 
 MONTH_NAMES = [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December",
 ]
+
+BUDGET_PLANS_DIR = PROJECT_ROOT / "data" / "budget-plans"
+
+
+def resolve_data_dir(plan_slug: str = None) -> Path:
+    """Resolve the data directory for a given plan slug.
+    Falls back to the first plan folder found if no slug is given."""
+    if plan_slug:
+        p = BUDGET_PLANS_DIR / plan_slug
+        if not p.exists():
+            raise FileNotFoundError(f"Budget-plan not found: {p}")
+        return p
+    # Auto-detect first plan
+    plans = [d for d in BUDGET_PLANS_DIR.iterdir() if d.is_dir()] if BUDGET_PLANS_DIR.exists() else []
+    if plans:
+        return plans[0]
+    # Legacy fallback: flat data/ directory
+    return PROJECT_ROOT / "data"
+
+
+# These are set by resolve() at startup — see bottom of file
+DATA_DIR   = None
+OUTPUT_DIR = None
 
 
 def read_json(filename: str) -> dict:
@@ -422,43 +446,49 @@ def generate_annual_snapshot(year: int) -> dict:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        # Batch mode: regenerate all monthly snapshots + annual packages
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Generate monthly/annual financial snapshots')
+    parser.add_argument('--plan', default=None, help='Budget-plan slug (auto-detects if omitted)')
+    parser.add_argument('year',  nargs='?', type=int, help='Year (YYYY)')
+    parser.add_argument('month', nargs='?', type=int, help='Month (MM)')
+    parsed = parser.parse_args()
+
+    # Initialise global DATA_DIR and OUTPUT_DIR based on resolved plan
+    DATA_DIR   = resolve_data_dir(parsed.plan)
+    plan_slug  = DATA_DIR.name
+    OUTPUT_DIR = PROJECT_ROOT / "output" / "snapshots" / plan_slug
+    print(f"[snapshot] Plan: {plan_slug}  data: {DATA_DIR}  output: {OUTPUT_DIR}")
+
+    if parsed.year and parsed.month:
+        y, m = parsed.year, parsed.month
+        if not (2000 <= y <= 2100):
+            print("Error: Year must be between 2000 and 2100"); sys.exit(1)
+        if not (1 <= m <= 12):
+            print("Error: Month must be between 1 and 12"); sys.exit(1)
+        generate_snapshot(y, m)
+    elif parsed.year or parsed.month:
+        print("Error: provide both YEAR and MONTH, or neither"); sys.exit(1)
+    else:
+        # Batch mode
         config = read_json("snapshot_months.json")
         months = config.get("months", [])
         if not months:
-            print("No months configured in data/snapshot_months.json")
+            print(f"No months configured in {DATA_DIR / 'snapshot_months.json'}")
             sys.exit(1)
         print(f"Regenerating {len(months)} monthly snapshot(s)…")
         for entry in months:
             try:
-                y, m = int(entry[:4]), int(entry[5:7])
-                generate_snapshot(y, m)
+                y2, m2 = int(entry[:4]), int(entry[5:7])
+                generate_snapshot(y2, m2)
             except Exception as exc:
                 print(f"  ✗ {entry}: {exc}")
 
         current_year = datetime.utcnow().year
         annual_years = list(range(current_year, current_year + 6))
         print(f"\nRegenerating annual snapshots for {annual_years[0]}–{annual_years[-1]}…")
-        for y in annual_years:
+        for y2 in annual_years:
             try:
-                generate_annual_snapshot(y)
+                generate_annual_snapshot(y2)
             except Exception as exc:
-                print(f"  ✗ {y}: {exc}")
-    elif len(sys.argv) == 3:
-        try:
-            y = int(sys.argv[1])
-            m = int(sys.argv[2])
-            if not (2000 <= y <= 2100):
-                raise ValueError("Year must be between 2000 and 2100")
-            if not (1 <= m <= 12):
-                raise ValueError("Month must be between 1 and 12")
-        except ValueError as exc:
-            print(f"Error: {exc}")
-            sys.exit(1)
-        generate_snapshot(y, m)
-    else:
-        print("Usage:")
-        print("  python apps/SnapshotSituation.py             # regenerate all configured months + annual packages")
-        print("  python apps/SnapshotSituation.py YYYY MM     # generate a specific monthly snapshot")
-        sys.exit(1)
+                print(f"  ✗ {y2}: {exc}")

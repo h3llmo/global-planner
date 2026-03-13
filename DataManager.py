@@ -8,7 +8,8 @@ Commands:
   validate — Compare DB content against JSON files for integrity
 
 Default DB path: apps/dashboard/finance.db
-Default data dir: data/
+Default plan:    first plan found in data/budget-plans/
+Default data dir: data/budget-plans/<plan-slug>/
 """
 
 import argparse
@@ -20,10 +21,30 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-PROJECT_ROOT  = Path(__file__).resolve().parent.parent
-DEFAULT_DB    = PROJECT_ROOT / 'apps' / 'dashboard' / 'finance.db'
-DEFAULT_DATA  = PROJECT_ROOT / 'data'
-SNAPSHOTS_DIR = PROJECT_ROOT / 'output' / 'snapshots'
+PROJECT_ROOT      = Path(__file__).resolve().parent.parent
+DEFAULT_DB        = PROJECT_ROOT / 'apps' / 'dashboard' / 'finance.db'
+BUDGET_PLANS_DIR  = PROJECT_ROOT / 'data' / 'budget-plans'
+SNAPSHOTS_DIR     = PROJECT_ROOT / 'output' / 'snapshots'
+
+
+def resolve_data_dir(plan_slug: str | None) -> Path:
+    """Resolve the data directory for a given plan slug.
+    If no slug given, use the first plan found in data/budget-plans/.
+    Falls back to legacy data/ root for backwards compatibility.
+    """
+    if BUDGET_PLANS_DIR.exists():
+        if plan_slug:
+            p = BUDGET_PLANS_DIR / plan_slug
+            if not p.exists():
+                print(f"Error: plan '{plan_slug}' not found in {BUDGET_PLANS_DIR}", file=sys.stderr)
+                sys.exit(1)
+            return p
+        # Auto-discover first plan
+        plans = sorted([d for d in BUDGET_PLANS_DIR.iterdir() if d.is_dir()])
+        if plans:
+            return plans[0]
+    # Legacy fallback
+    return PROJECT_ROOT / 'data'
 
 
 def read_json(data_dir: Path, filename: str):
@@ -245,6 +266,22 @@ CREATE TABLE IF NOT EXISTS snapshots (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_monthly ON snapshots(year, month) WHERE type = 'monthly';
 CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_annual  ON snapshots(year)        WHERE type = 'annual';
+
+CREATE TABLE IF NOT EXISTS budget_plans (
+    id              TEXT PRIMARY KEY,
+    name            TEXT NOT NULL,
+    description     TEXT,
+    currency        TEXT NOT NULL DEFAULT 'EUR',
+    owner_auth0_id  TEXT,
+    created_at      TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS budget_plan_access (
+    plan_id         TEXT NOT NULL REFERENCES budget_plans(id),
+    auth0_user_id   TEXT NOT NULL,
+    role            TEXT NOT NULL CHECK(role IN ('editor', 'viewer')),
+    PRIMARY KEY (plan_id, auth0_user_id)
+);
 """
 
 # ── Drop all tables (for clean recreate) ─────────────────────────────────────
@@ -270,6 +307,8 @@ DROP TABLE IF EXISTS permissions;
 DROP TABLE IF EXISTS timeline_milestones;
 DROP TABLE IF EXISTS timeline_projects;
 DROP TABLE IF EXISTS snapshots;
+DROP TABLE IF EXISTS budget_plan_access;
+DROP TABLE IF EXISTS budget_plans;
 PRAGMA foreign_keys = ON;
 """
 
@@ -711,12 +750,32 @@ def export_snapshots(conn, snapshots_dir: Path):
 
 # ── Commands ──────────────────────────────────────────────────────────────────
 
+def import_plan(conn, plan_json_path: Path):
+    """Import plan metadata from plan.json into budget_plans table."""
+    if not plan_json_path.exists():
+        return 0
+    with open(plan_json_path, 'r', encoding='utf-8') as f:
+        p = json.load(f)
+    conn.execute(
+        "INSERT OR REPLACE INTO budget_plans (id, name, description, currency, owner_auth0_id, created_at) VALUES (?,?,?,?,?,?)",
+        (p['id'], p['name'], p.get('description'), p.get('currency', 'EUR'),
+         p.get('owner_auth0_id'), p.get('created_at', datetime.now(timezone.utc).isoformat()))
+    )
+    for entry in p.get('access', []):
+        conn.execute(
+            "INSERT OR REPLACE INTO budget_plan_access (plan_id, auth0_user_id, role) VALUES (?,?,?)",
+            (p['id'], entry['auth0_user_id'], entry['role'])
+        )
+    return 1
+
+
 def cmd_create(args):
-    data_dir     = Path(args.data)
-    db_path      = Path(args.db)
-    snapshots_dir = Path(args.snapshots) if args.snapshots else SNAPSHOTS_DIR
+    data_dir      = Path(args.data)
+    db_path       = Path(args.db)
+    snapshots_dir = Path(args.snapshots) if args.snapshots else SNAPSHOTS_DIR / data_dir.name
 
     print(f"Creating database: {db_path}")
+    print(f"Plan data dir:     {data_dir}")
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     conn = sqlite3.connect(str(db_path))
@@ -724,6 +783,7 @@ def cmd_create(args):
     conn.executescript(SCHEMA_SQL)
 
     steps = [
+        ("plan",               lambda: import_plan(conn, data_dir / 'plan.json')),
         ("addresses",          lambda: import_addresses(conn, read_json(data_dir, 'addresses.json'))),
         ("people",             lambda: import_people(conn, read_json(data_dir, 'people.json'))),
         ("real_estate",        lambda: import_real_estate(conn, read_json(data_dir, 'real_estate.json'))),
@@ -749,7 +809,7 @@ def cmd_create(args):
 def cmd_export(args):
     db_path       = Path(args.db)
     data_dir      = Path(args.data)
-    snapshots_dir = Path(args.snapshots) if args.snapshots else SNAPSHOTS_DIR
+    snapshots_dir = Path(args.snapshots) if args.snapshots else SNAPSHOTS_DIR / data_dir.name
 
     if not db_path.exists():
         print(f"Error: database not found at {db_path}", file=sys.stderr)
@@ -787,7 +847,7 @@ def cmd_export(args):
 def cmd_validate(args):
     db_path  = Path(args.db)
     data_dir = Path(args.data)
-    snapshots_dir = Path(args.snapshots) if args.snapshots else SNAPSHOTS_DIR
+    snapshots_dir = Path(args.snapshots) if args.snapshots else SNAPSHOTS_DIR / data_dir.name
 
     if not db_path.exists():
         print(f"Error: database not found at {db_path}", file=sys.stderr)
@@ -852,9 +912,10 @@ def cmd_validate(args):
 
 def main():
     parser = argparse.ArgumentParser(description='Personal Finance — SQLite Data Manager')
-    parser.add_argument('--db',        default=str(DEFAULT_DB),   help='Path to SQLite database file')
-    parser.add_argument('--data',      default=str(DEFAULT_DATA), help='Path to JSON data directory')
-    parser.add_argument('--snapshots', default=None,              help='Path to snapshots directory (default: output/snapshots)')
+    parser.add_argument('--db',        default=str(DEFAULT_DB), help='Path to SQLite database file')
+    parser.add_argument('--plan',      default=None,            help='Budget-plan slug (e.g. foyer-pascual-anaelle). Auto-detects first plan if omitted.')
+    parser.add_argument('--data',      default=None,            help='Override JSON data directory (bypasses --plan resolution)')
+    parser.add_argument('--snapshots', default=None,            help='Override snapshots directory')
 
     subparsers = parser.add_subparsers(dest='command', required=True)
     subparsers.add_parser('create',   help='Create/reset SQLite DB from JSON files')
@@ -862,6 +923,10 @@ def main():
     subparsers.add_parser('validate', help='Validate DB integrity against JSON files')
 
     args = parser.parse_args()
+
+    # Resolve data dir: explicit --data overrides plan resolution
+    if args.data is None:
+        args.data = str(resolve_data_dir(args.plan))
 
     if   args.command == 'create':   cmd_create(args)
     elif args.command == 'export':   cmd_export(args)
