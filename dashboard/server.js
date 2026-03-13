@@ -7,6 +7,7 @@ const fs           = require('fs');
 const cookieParser = require('cookie-parser');
 const { auth, requiresAuth } = require('express-openid-connect');
 const db           = require('./db');
+const snapshot     = require('./snapshot');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -571,6 +572,30 @@ planRouter.get('/snapshots/:month', async (req, res) => {
     const snapshot   = await db.getSnapshot(year, mon);
     if (!snapshot) return res.status(404).json({ error: 'Snapshot not found.' });
     res.json(filterSnapshot(snapshot, perms, activeRole));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /plan/:slug/api/snapshots/preview-auto
+planRouter.get('/api/snapshots/preview-auto', async (req, res) => {
+  try {
+    const months = await snapshot.generateAutoMonths(req.params.slug);
+    res.json({ months });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /plan/:slug/api/snapshots/generate
+// Body: { mode: 'auto'|'manual', months?: ['2026-04', ...] }
+planRouter.post('/api/snapshots/generate', async (req, res) => {
+  try {
+    const { mode = 'auto', months } = req.body;
+    const plan = db.listPlans().find(p => p.id === req.params.slug);
+    if (!plan) return res.status(404).json({ error: 'Plan not found' });
+    const result = await snapshot.generateSnapshots(plan.id, { mode, months });
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

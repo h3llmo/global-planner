@@ -796,4 +796,7 @@ module.exports = {
   getPersonByAuth0Email,
   listPeople,
   createPlan,
+  getDb,
+  query,
+  queryOne,
 };
