@@ -285,11 +285,16 @@ CREATE TABLE IF NOT EXISTS budget_plans (
     created_at      TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS plan_members (
+    person_slug     TEXT NOT NULL,
+    PRIMARY KEY (person_slug)
+);
+
 CREATE TABLE IF NOT EXISTS budget_plan_access (
     plan_id         TEXT NOT NULL REFERENCES budget_plans(id),
-    auth0_user_id   TEXT NOT NULL,
-    role            TEXT NOT NULL CHECK(role IN ('editor', 'viewer')),
-    PRIMARY KEY (plan_id, auth0_user_id)
+    auth0_email     TEXT NOT NULL,
+    role            TEXT NOT NULL DEFAULT 'consultant',
+    PRIMARY KEY (plan_id, auth0_email)
 );
 
 CREATE TABLE IF NOT EXISTS virtual_contracts (
@@ -808,10 +813,14 @@ def import_plan(conn, plan_json_path: Path):
          p.get('owner_auth0_id'), p.get('created_at', datetime.now(timezone.utc).isoformat()))
     )
     for entry in p.get('access', []):
-        conn.execute(
-            "INSERT OR REPLACE INTO budget_plan_access (plan_id, auth0_user_id, role) VALUES (?,?,?)",
-            (p['id'], entry['auth0_user_id'], entry['role'])
-        )
+        email = entry.get('auth0_email') or entry.get('auth0_user_id')  # backward compat
+        if email:
+            conn.execute(
+                "INSERT OR REPLACE INTO budget_plan_access (plan_id, auth0_email, role) VALUES (?,?,?)",
+                (p['id'], email, entry.get('role', 'consultant'))
+            )
+    for slug in p.get('members', []):
+        conn.execute("INSERT OR IGNORE INTO plan_members (person_slug) VALUES (?)", (slug,))
     return p.get('members', [])
 
 

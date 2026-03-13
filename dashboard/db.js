@@ -47,7 +47,8 @@ CREATE TABLE IF NOT EXISTS snapshots (id INTEGER PRIMARY KEY AUTOINCREMENT, type
 CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_monthly ON snapshots(year, month) WHERE type='monthly';
 CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_annual  ON snapshots(year)        WHERE type='annual';
 CREATE TABLE IF NOT EXISTS budget_plans (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, currency TEXT DEFAULT 'EUR', owner_auth0_id TEXT, created_at TEXT);
-CREATE TABLE IF NOT EXISTS budget_plan_access (plan_id TEXT NOT NULL REFERENCES budget_plans(id), auth0_user_id TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'viewer', PRIMARY KEY (plan_id, auth0_user_id));
+CREATE TABLE IF NOT EXISTS plan_members (person_slug TEXT NOT NULL, PRIMARY KEY (person_slug));
+CREATE TABLE IF NOT EXISTS budget_plan_access (plan_id TEXT NOT NULL REFERENCES budget_plans(id), auth0_email TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'consultant', PRIMARY KEY (plan_id, auth0_email));
 CREATE TABLE IF NOT EXISTS virtual_contracts (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_id TEXT NOT NULL, title TEXT NOT NULL, category TEXT NOT NULL, direction TEXT NOT NULL DEFAULT 'expense', owner_id INTEGER REFERENCES people(id), monthly_cost REAL, start_date TEXT, end_date TEXT, notes TEXT);
 CREATE TABLE IF NOT EXISTS virtual_incomes (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_id TEXT NOT NULL, person_id INTEGER REFERENCES people(id), year INTEGER NOT NULL, avg_net_monthly_salary REAL, notes TEXT);
 CREATE TABLE IF NOT EXISTS virtual_periodic_expenses (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_id TEXT NOT NULL, title TEXT NOT NULL, category TEXT NOT NULL, owner_id INTEGER REFERENCES people(id), payments TEXT, notes TEXT);
@@ -115,36 +116,111 @@ async function initDb(slug) {
   }
 }
 
-/** Initialize DBs for all plans found in data/budget-plans/ */
-async function initAllPlans() {
-  const slugs = _getLocalPlanSlugs();
-  if (slugs.length === 0) {
-    console.warn('[db] No budget-plans found — starting with empty schema.');
-    return;
-  }
-  for (const slug of slugs) {
-    await initDb(slug);
-  }
+/** Return slugs of all finance-*.db files present in this directory */
+function _getDbSlugs() {
+  try {
+    return fs.readdirSync(__dirname)
+      .filter(f => /^finance-.+\.db$/.test(f))
+      .map(f => f.slice('finance-'.length, -'.db'.length));
+  } catch { return []; }
 }
 
-/** List plan slugs from the filesystem (local budget-plans directory) */
+/** Return slugs from local data/budget-plans/ (used at startup to trigger JSON→DB import) */
 function _getLocalPlanSlugs() {
   if (!fs.existsSync(BUDGET_PLANS_DIR)) return [];
   return fs.readdirSync(BUDGET_PLANS_DIR)
-    .filter(d => fs.statSync(path.join(BUDGET_PLANS_DIR, d)).isDirectory());
+    .filter(d => { try { return fs.statSync(path.join(BUDGET_PLANS_DIR, d)).isDirectory(); } catch { return false; } });
 }
 
-/** Read plan.json for all local plans and return metadata array */
-function listPlans() {
-  return _getLocalPlanSlugs().map(slug => {
-    const planFile = path.join(BUDGET_PLANS_DIR, slug, 'plan.json');
-    if (!fs.existsSync(planFile)) return { id: slug, name: slug, members: [] };
+// In-memory cache — populated after initAllPlans(), updated by createPlan()
+let _plansMeta = [];
+
+/** (Re)load _plansMeta from all existing plan DBs */
+async function _refreshPlansMeta() {
+  const slugs  = _getDbSlugs();
+  const results = await Promise.all(slugs.map(async slug => {
     try {
-      return JSON.parse(fs.readFileSync(planFile, 'utf8'));
-    } catch {
-      return { id: slug, name: slug, members: [] };
+      const db  = await _getDbForSlug(slug);
+      const row = queryOne(db, 'SELECT id, name, description, currency FROM budget_plans LIMIT 1');
+      if (!row) return null;
+      const members = query(db, 'SELECT person_slug FROM plan_members').map(r => r.person_slug);
+      const access  = query(db, 'SELECT auth0_email, role FROM budget_plan_access').map(r => ({ auth0_email: r.auth0_email, role: r.role }));
+      return { ...row, members, access };
+    } catch (e) {
+      console.warn(`[db] Could not read plan meta for "${slug}":`, e.message);
+      return null;
     }
-  });
+  }));
+  _plansMeta = results.filter(Boolean);
+}
+
+/** Return the cached plan list (populated by initAllPlans / createPlan) */
+function listPlans() {
+  return _plansMeta;
+}
+
+/** Initialize DBs for all plans found in data/budget-plans/, then populate cache */
+async function initAllPlans() {
+  const slugs = _getLocalPlanSlugs();
+  if (slugs.length === 0) {
+    console.warn('[db] No budget-plans found in data/budget-plans/ — starting with empty schema.');
+  } else {
+    for (const slug of slugs) {
+      await initDb(slug);
+    }
+  }
+  await _refreshPlansMeta();
+}
+
+/**
+ * Create a new plan DB directly — no filesystem writes to data/budget-plans/.
+ * Inserts plan metadata, permissions, members and access entries.
+ */
+async function createPlan({ id, name, description, currency, members, access }) {
+  const dbPath = getDbPath(id);
+  if (fs.existsSync(dbPath)) throw new Error(`A plan with id "${id}" already exists.`);
+
+  const SQL = await _getSql();
+  const db  = new SQL.Database();
+  db.run(SCHEMA_SQL);
+
+  const today = new Date().toISOString().slice(0, 10);
+  db.run(
+    'INSERT INTO budget_plans (id, name, description, currency, created_at) VALUES (?,?,?,?,?)',
+    [id, name, description || '', currency || 'EUR', today]
+  );
+
+  // Seed permissions & roles from shared config so the plan is usable immediately
+  const permFile = path.join(PROJECT_ROOT, 'data', 'shared', 'permissions.json');
+  if (fs.existsSync(permFile)) {
+    try {
+      const cfg = JSON.parse(fs.readFileSync(permFile, 'utf8'));
+      for (const p of (cfg.permissions || []))
+        db.run('INSERT OR IGNORE INTO permissions (id, description) VALUES (?,?)', [p.id, p.description]);
+      for (const r of (cfg.roles || [])) {
+        db.run('INSERT OR IGNORE INTO roles (id, label, description, is_default) VALUES (?,?,?,?)',
+          [r.id, r.label, r.description || '', r.id === cfg.default_role ? 1 : 0]);
+        for (const pid of (r.permissions || []))
+          db.run('INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?,?)', [r.id, pid]);
+      }
+    } catch (e) { console.warn('[db] createPlan: could not seed permissions:', e.message); }
+  }
+
+  for (const slug of (members || []))
+    db.run('INSERT OR IGNORE INTO plan_members (person_slug) VALUES (?)', [slug]);
+
+  for (const a of (access || []))
+    if (a.email && a.email.trim())
+      db.run('INSERT OR IGNORE INTO budget_plan_access (plan_id, auth0_email, role) VALUES (?,?,?)',
+        [id, a.email.trim(), a.role || 'consultant']);
+
+  fs.writeFileSync(dbPath, Buffer.from(db.export()));
+  db.close();
+
+  // Register in state map and refresh the in-memory list
+  if (!_planState[id]) _planState[id] = { db: null, loadedMtime: 0, loadPromise: null, memoryOnlyDb: null };
+  await _refreshPlansMeta();
+  return { id, name, url: `/plan/${id}` };
 }
 
 // ── Per-plan DB state ──────────────────────────────────────────────────────────
@@ -486,4 +562,5 @@ module.exports = {
   getAnnualSnapshot,
   getPersonByAuth0Email,
   listPeople,
+  createPlan,
 };

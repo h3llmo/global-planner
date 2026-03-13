@@ -438,8 +438,6 @@ app.get('/api/indicators', async (req, res) => {
 
 // ── Plan selector API ─────────────────────────────────────────────────────────
 
-const BUDGET_PLANS_DIR = path.resolve(__dirname, '..', '..', 'data', 'budget-plans');
-
 app.get('/api/plans', (req, res) => {
   res.json(db.listPlans());
 });
@@ -452,43 +450,15 @@ app.post('/api/plans', requiresAuth(), async (req, res) => {
   try {
     const { id, name, description, currency, members, access } = req.body;
     if (!id || !name) return res.status(400).json({ error: 'id and name are required.' });
-    if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(id) && id.length > 1)
+    if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]?$/.test(id))
       return res.status(400).json({ error: 'id must use lowercase letters, numbers, and hyphens.' });
 
-    const planDir = path.join(BUDGET_PLANS_DIR, id);
-    if (fs.existsSync(planDir)) return res.status(409).json({ error: `A plan with id "${id}" already exists.` });
-
-    fs.mkdirSync(planDir, { recursive: true });
-
-    const planData = {
-      id,
-      name,
-      description:   description || '',
-      currency:      currency    || 'EUR',
-      created_at:    new Date().toISOString().slice(0, 10),
-      owner_auth0_id: null,
-      members:        members || [],
-      access:         (access || [])
-                        .filter(a => a.email && a.email.trim())
-                        .map(a => ({ auth0_email: a.email.trim(), role: a.role || 'consultant' })),
-    };
-    fs.writeFileSync(path.join(planDir, 'plan.json'), JSON.stringify(planData, null, 2));
-
-    const emptyFiles = {
-      'timeline.json':                    { project: { name, description: '', currency: planData.currency, milestones: [] } },
-      'virtual_contracts.json':           { virtual_contracts: [] },
-      'virtual_incomes.json':             { virtual_incomes: [] },
-      'virtual_periodic_expenses.json':   { virtual_periodic_expenses: [] },
-      'snapshot_months.json':             { months: [] },
-    };
-    for (const [file, content] of Object.entries(emptyFiles))
-      fs.writeFileSync(path.join(planDir, file), JSON.stringify(content, null, 2));
-
-    await db.initDb(id);
-    res.status(201).json({ id, name, url: `/plan/${id}` });
+    const result = await db.createPlan({ id, name, description, currency, members, access });
+    res.status(201).json(result);
   } catch (err) {
     console.error('[api/plans POST]', err);
-    res.status(500).json({ error: err.message });
+    const status = err.message.includes('already exists') ? 409 : 500;
+    res.status(status).json({ error: err.message });
   }
 });
 
