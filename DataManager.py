@@ -9,7 +9,15 @@ Commands:
 
 Default DB path: apps/dashboard/finance.db
 Default plan:    first plan found in data/budget-plans/
-Default data dir: data/budget-plans/<plan-slug>/
+
+New data layout:
+  data/people/<slug>/          profile.json, contracts.json, incomes.json,
+                               periodic_expenses.json, bank_accounts.json
+  data/shared/                 addresses.json, real_estate.json,
+                               mortgages.json, permissions.json
+  data/budget-plans/<slug>/    plan.json, timeline.json, snapshot_months.json,
+                               virtual_contracts.json, virtual_incomes.json,
+                               virtual_periodic_expenses.json
 """
 
 import argparse
@@ -24,13 +32,14 @@ from datetime import datetime, timezone
 PROJECT_ROOT      = Path(__file__).resolve().parent.parent
 DEFAULT_DB        = PROJECT_ROOT / 'apps' / 'dashboard' / 'finance.db'
 BUDGET_PLANS_DIR  = PROJECT_ROOT / 'data' / 'budget-plans'
+PEOPLE_DIR        = PROJECT_ROOT / 'data' / 'people'
+SHARED_DIR        = PROJECT_ROOT / 'data' / 'shared'
 SNAPSHOTS_DIR     = PROJECT_ROOT / 'output' / 'snapshots'
 
 
 def resolve_data_dir(plan_slug: str | None) -> Path:
-    """Resolve the data directory for a given plan slug.
+    """Resolve the budget-plan folder for a given plan slug.
     If no slug given, use the first plan found in data/budget-plans/.
-    Falls back to legacy data/ root for backwards compatibility.
     """
     if BUDGET_PLANS_DIR.exists():
         if plan_slug:
@@ -43,16 +52,15 @@ def resolve_data_dir(plan_slug: str | None) -> Path:
         plans = sorted([d for d in BUDGET_PLANS_DIR.iterdir() if d.is_dir()])
         if plans:
             return plans[0]
-    # Legacy fallback
     return PROJECT_ROOT / 'data'
 
 
-def read_json(data_dir: Path, filename: str):
-    p = data_dir / filename
-    if not p.exists():
-        print(f"  [WARN] {filename} not found, skipping.")
+def read_json_file(path: Path):
+    """Read JSON from an absolute Path. Returns None (with warning) if file not found."""
+    if not path.exists():
+        print(f"  [WARN] {path.name} not found at {path}, skipping.")
         return None
-    with open(p, 'r', encoding='utf-8') as f:
+    with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
@@ -282,6 +290,38 @@ CREATE TABLE IF NOT EXISTS budget_plan_access (
     role            TEXT NOT NULL CHECK(role IN ('editor', 'viewer')),
     PRIMARY KEY (plan_id, auth0_user_id)
 );
+
+CREATE TABLE IF NOT EXISTS virtual_contracts (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id       TEXT NOT NULL,
+    title         TEXT NOT NULL,
+    category      TEXT NOT NULL,
+    direction     TEXT NOT NULL DEFAULT 'expense',
+    owner_id      INTEGER REFERENCES people(id),
+    monthly_cost  REAL,
+    start_date    TEXT,
+    end_date      TEXT,
+    notes         TEXT
+);
+
+CREATE TABLE IF NOT EXISTS virtual_incomes (
+    id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id                TEXT NOT NULL,
+    person_id              INTEGER REFERENCES people(id),
+    year                   INTEGER NOT NULL,
+    avg_net_monthly_salary REAL,
+    notes                  TEXT
+);
+
+CREATE TABLE IF NOT EXISTS virtual_periodic_expenses (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id   TEXT NOT NULL,
+    title     TEXT NOT NULL,
+    category  TEXT NOT NULL,
+    owner_id  INTEGER REFERENCES people(id),
+    payments  TEXT,
+    notes     TEXT
+);
 """
 
 # ── Drop all tables (for clean recreate) ─────────────────────────────────────
@@ -309,6 +349,9 @@ DROP TABLE IF EXISTS timeline_projects;
 DROP TABLE IF EXISTS snapshots;
 DROP TABLE IF EXISTS budget_plan_access;
 DROP TABLE IF EXISTS budget_plans;
+DROP TABLE IF EXISTS virtual_contracts;
+DROP TABLE IF EXISTS virtual_incomes;
+DROP TABLE IF EXISTS virtual_periodic_expenses;
 PRAGMA foreign_keys = ON;
 """
 
@@ -751,9 +794,11 @@ def export_snapshots(conn, snapshots_dir: Path):
 # ── Commands ──────────────────────────────────────────────────────────────────
 
 def import_plan(conn, plan_json_path: Path):
-    """Import plan metadata from plan.json into budget_plans table."""
+    """Import plan metadata from plan.json into budget_plans table.
+    Returns the list of member slugs (or empty list).
+    """
     if not plan_json_path.exists():
-        return 0
+        return []
     with open(plan_json_path, 'r', encoding='utf-8') as f:
         p = json.load(f)
     conn.execute(
@@ -766,40 +811,142 @@ def import_plan(conn, plan_json_path: Path):
             "INSERT OR REPLACE INTO budget_plan_access (plan_id, auth0_user_id, role) VALUES (?,?,?)",
             (p['id'], entry['auth0_user_id'], entry['role'])
         )
-    return 1
+    return p.get('members', [])
+
+
+def import_person_profile(conn, person_dir: Path):
+    """Import just the person profile (addresses must exist first)."""
+    profile = read_json_file(person_dir / 'profile.json')
+    if profile is None:
+        return
+    import_people(conn, {'people': [profile]})
+
+
+def import_person_financial_data(conn, person_dir: Path):
+    """Import financial data for a person (people + properties must exist first)."""
+    import_bank_accounts(conn, read_json_file(person_dir / 'bank_accounts.json'))
+    import_contracts(conn, read_json_file(person_dir / 'contracts.json'))
+    import_periodic_expenses(conn, read_json_file(person_dir / 'periodic_expenses.json'))
+    import_incomes(conn, read_json_file(person_dir / 'incomes.json'))
+
+
+def import_person_data(conn, person_dir: Path):
+    """Import all data for one person (addresses + properties must exist first)."""
+    import_person_profile(conn, person_dir)
+    import_person_financial_data(conn, person_dir)
+
+
+def import_shared_data_pre(conn, shared_dir: Path):
+    """Import shared data that must precede people: addresses and permissions."""
+    import_addresses(conn, read_json_file(shared_dir / 'addresses.json'))
+    import_permissions(conn, read_json_file(shared_dir / 'permissions.json'))
+
+
+def import_shared_real_estate(conn, shared_dir: Path):
+    """Import real_estate (needs people for property_owners)."""
+    import_real_estate(conn, read_json_file(shared_dir / 'real_estate.json'))
+
+
+def import_shared_mortgages(conn, shared_dir: Path):
+    """Import mortgages (needs people, properties, and contracts)."""
+    mort_data = read_json_file(shared_dir / 'mortgages.json')
+    if mort_data is not None:
+        import_mortgages(conn, mort_data if isinstance(mort_data, list) else mort_data.get('mortgages', []))
+
+
+def import_virtual_data(conn, plan_dir: Path, plan_id: str):
+    """Import virtual_contracts, virtual_incomes, virtual_periodic_expenses for the plan."""
+    vc_data = read_json_file(plan_dir / 'virtual_contracts.json')
+    if vc_data:
+        for r in vc_data.get('virtual_contracts', []):
+            conn.execute(
+                """INSERT INTO virtual_contracts
+                   (plan_id, title, category, direction, owner_id, monthly_cost, start_date, end_date, notes)
+                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                (plan_id, r['title'], r['category'], r.get('direction', 'expense'),
+                 r.get('owner_id'), r.get('monthly_cost'), r.get('start_date'), r.get('end_date'), r.get('notes'))
+            )
+
+    vi_data = read_json_file(plan_dir / 'virtual_incomes.json')
+    if vi_data:
+        for r in vi_data.get('virtual_incomes', []):
+            conn.execute(
+                """INSERT INTO virtual_incomes (plan_id, person_id, year, avg_net_monthly_salary, notes)
+                   VALUES (?,?,?,?,?)""",
+                (plan_id, r.get('person_id'), r['year'], r.get('avg_net_monthly_salary'), r.get('notes'))
+            )
+
+    vpe_data = read_json_file(plan_dir / 'virtual_periodic_expenses.json')
+    if vpe_data:
+        for r in vpe_data.get('virtual_periodic_expenses', []):
+            conn.execute(
+                """INSERT INTO virtual_periodic_expenses (plan_id, title, category, owner_id, payments, notes)
+                   VALUES (?,?,?,?,?,?)""",
+                (plan_id, r['title'], r['category'], r.get('owner_id'),
+                 json.dumps(r.get('payments', [])), r.get('notes'))
+            )
 
 
 def cmd_create(args):
-    data_dir      = Path(args.data)
+    plan_dir      = Path(args.data)
     db_path       = Path(args.db)
-    snapshots_dir = Path(args.snapshots) if args.snapshots else SNAPSHOTS_DIR / data_dir.name
+    snapshots_dir = Path(args.snapshots) if args.snapshots else SNAPSHOTS_DIR / plan_dir.name
 
     print(f"Creating database: {db_path}")
-    print(f"Plan data dir:     {data_dir}")
+    print(f"Plan dir:          {plan_dir}")
+    print(f"People dir:        {PEOPLE_DIR}")
+    print(f"Shared dir:        {SHARED_DIR}")
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     conn = sqlite3.connect(str(db_path))
     conn.executescript(DROP_SQL)
     conn.executescript(SCHEMA_SQL)
 
-    steps = [
-        ("plan",               lambda: import_plan(conn, data_dir / 'plan.json')),
-        ("addresses",          lambda: import_addresses(conn, read_json(data_dir, 'addresses.json'))),
-        ("people",             lambda: import_people(conn, read_json(data_dir, 'people.json'))),
-        ("real_estate",        lambda: import_real_estate(conn, read_json(data_dir, 'real_estate.json'))),
-        ("bank_accounts",      lambda: import_bank_accounts(conn, read_json(data_dir, 'bank_accounts.json'))),
-        ("contracts",          lambda: import_contracts(conn, read_json(data_dir, 'contracts.json'))),
-        ("periodic_expenses",  lambda: import_periodic_expenses(conn, read_json(data_dir, 'periodic_expenses.json'))),
-        ("mortgages",          lambda: import_mortgages(conn, read_json(data_dir, 'mortgages.json'))),
-        ("incomes",            lambda: import_incomes(conn, read_json(data_dir, 'incomes.json'))),
-        ("permissions",        lambda: import_permissions(conn, read_json(data_dir, 'permissions.json'))),
-        ("timeline",           lambda: import_timeline(conn, read_json(data_dir, 'time_line.json'))),
-        ("snapshots",          lambda: import_snapshots(conn, snapshots_dir)),
-    ]
+    # 1. Import plan metadata and get member slugs
+    members = import_plan(conn, plan_dir / 'plan.json')
+    plan_id = plan_dir.name
+    print(f"  ✓ plan: 1 record  (members: {members})")
 
-    for name, fn in steps:
-        n = fn()
-        print(f"  ✓ {name}: {n} records")
+    # 2. Import shared pre-people data (addresses, permissions)
+    print("  Importing shared pre-people data…")
+    import_shared_data_pre(conn, SHARED_DIR)
+
+    # 3. Import person profiles (needs addresses)
+    print("  Importing people profiles…")
+    for slug in members:
+        person_dir = PEOPLE_DIR / slug
+        if not person_dir.exists():
+            print(f"  [WARN] People dir not found: {person_dir}")
+            continue
+        import_person_profile(conn, person_dir)
+        print(f"    ✓ {slug}")
+
+    # 4. Import real_estate (needs people for property_owners)
+    print("  Importing real estate…")
+    import_shared_real_estate(conn, SHARED_DIR)
+
+    # 5. Import financial data per person (needs people + properties)
+    print("  Importing financial data…")
+    for slug in members:
+        person_dir = PEOPLE_DIR / slug
+        if not person_dir.exists():
+            continue
+        import_person_financial_data(conn, person_dir)
+        print(f"    ✓ {slug}")
+
+    # 6. Import mortgages (needs people, properties, contracts)
+    print("  Importing mortgages…")
+    import_shared_mortgages(conn, SHARED_DIR)
+
+    # 4. Import plan-specific data
+    n_tl = import_timeline(conn, read_json_file(plan_dir / 'timeline.json'))
+    print(f"  ✓ timeline: {n_tl} milestones")
+
+    import_virtual_data(conn, plan_dir, plan_id)
+    print(f"  ✓ virtual data imported")
+
+    n_snap = import_snapshots(conn, snapshots_dir)
+    print(f"  ✓ snapshots: {n_snap} files")
 
     conn.commit()
     conn.close()
@@ -807,9 +954,9 @@ def cmd_create(args):
 
 
 def cmd_export(args):
+    plan_dir      = Path(args.data)
     db_path       = Path(args.db)
-    data_dir      = Path(args.data)
-    snapshots_dir = Path(args.snapshots) if args.snapshots else SNAPSHOTS_DIR / data_dir.name
+    snapshots_dir = Path(args.snapshots) if args.snapshots else SNAPSHOTS_DIR / plan_dir.name
 
     if not db_path.exists():
         print(f"Error: database not found at {db_path}", file=sys.stderr)
@@ -818,36 +965,83 @@ def cmd_export(args):
     print(f"Exporting from: {db_path}")
     conn = sqlite3.connect(str(db_path))
 
-    exports = [
-        ('addresses.json',        lambda: export_addresses(conn)),
-        ('people.json',           lambda: export_people(conn)),
-        ('real_estate.json',      lambda: export_real_estate(conn)),
-        ('bank_accounts.json',    lambda: export_bank_accounts(conn)),
-        ('contracts.json',        lambda: export_contracts(conn)),
-        ('periodic_expenses.json',lambda: export_periodic_expenses(conn)),
-        ('mortgages.json',        lambda: export_mortgages(conn)),
-        ('incomes.json',          lambda: export_incomes(conn)),
-        ('permissions.json',      lambda: export_permissions(conn)),
-        ('time_line.json',        lambda: export_timeline(conn)),
-    ]
+    # Shared data
+    write_json(SHARED_DIR / 'addresses.json',   export_addresses(conn))
+    write_json(SHARED_DIR / 'real_estate.json',  export_real_estate(conn))
+    write_json(SHARED_DIR / 'mortgages.json',    export_mortgages(conn))
+    write_json(SHARED_DIR / 'permissions.json',  export_permissions(conn))
+    print(f"  ✓ shared data → {SHARED_DIR}")
 
-    for filename, fn in exports:
-        data = fn()
-        write_json(data_dir / filename, data)
-        count = len(data) if isinstance(data, list) else len(next(iter(data.values()), []))
-        print(f"  ✓ {filename}: {count} records")
+    # Per-person data — use plan.json to get member slugs and map slug→person_id via profile
+    plan_json = read_json_file(plan_dir / 'plan.json')
+    members = plan_json.get('members', []) if plan_json else []
+    for slug in members:
+        person_dir = PEOPLE_DIR / slug
+        profile_path = person_dir / 'profile.json'
+        if not profile_path.exists():
+            print(f"  [WARN] profile.json not found for {slug}, skipping export")
+            continue
+        with open(profile_path, 'r', encoding='utf-8') as f:
+            profile_data = json.load(f)
+        pid = profile_data['id']
+
+        people_data = export_people(conn)
+        person_row = next((p for p in people_data['people'] if p['id'] == pid), None)
+        if person_row:
+            write_json(person_dir / 'profile.json', person_row)
+
+        # Filter per-person data by person_id / owner_id
+        contracts_all = export_contracts(conn)
+        write_json(person_dir / 'contracts.json',
+                   {'contracts': [c for c in contracts_all['contracts'] if c['owner_id'] == pid]})
+
+        incomes_all = export_incomes(conn)
+        write_json(person_dir / 'incomes.json',
+                   {'incomes': [i for i in incomes_all['incomes'] if i['person_id'] == pid]})
+
+        pe_all = export_periodic_expenses(conn)
+        write_json(person_dir / 'periodic_expenses.json',
+                   {'periodic_expenses': [e for e in pe_all['periodic_expenses'] if e['owner_id'] == pid]})
+
+        ba_all = export_bank_accounts(conn)
+        write_json(person_dir / 'bank_accounts.json',
+                   {'bank_accounts': [a for a in ba_all['bank_accounts'] if a['person_id'] == pid]})
+        print(f"  ✓ {slug} → {person_dir}")
+
+    # Plan-level data
+    write_json(plan_dir / 'timeline.json', export_timeline(conn))
+
+    # Virtual data
+    plan_id = plan_dir.name
+    vc_rows = conn.execute("SELECT title, category, direction, owner_id, monthly_cost, start_date, end_date, notes FROM virtual_contracts WHERE plan_id=?", (plan_id,)).fetchall()
+    write_json(plan_dir / 'virtual_contracts.json', {'virtual_contracts': [
+        {k: v for k, v in zip(['title','category','direction','owner_id','monthly_cost','start_date','end_date','notes'], r) if v is not None}
+        for r in vc_rows
+    ]})
+    vi_rows = conn.execute("SELECT person_id, year, avg_net_monthly_salary, notes FROM virtual_incomes WHERE plan_id=?", (plan_id,)).fetchall()
+    write_json(plan_dir / 'virtual_incomes.json', {'virtual_incomes': [
+        {k: v for k, v in zip(['person_id','year','avg_net_monthly_salary','notes'], r) if v is not None}
+        for r in vi_rows
+    ]})
+    vpe_rows = conn.execute("SELECT title, category, owner_id, payments, notes FROM virtual_periodic_expenses WHERE plan_id=?", (plan_id,)).fetchall()
+    write_json(plan_dir / 'virtual_periodic_expenses.json', {'virtual_periodic_expenses': [
+        dict(title=r[0], category=r[1], **({} if r[2] is None else {'owner_id': r[2]}),
+             payments=json.loads(r[3] or '[]'), **({} if r[4] is None else {'notes': r[4]}))
+        for r in vpe_rows
+    ]})
+    print(f"  ✓ virtual data → {plan_dir}")
 
     n = export_snapshots(conn, snapshots_dir)
     print(f"  ✓ snapshots: {n} files")
 
     conn.close()
-    print(f"\nExport complete → {data_dir}")
+    print(f"\nExport complete → {plan_dir}")
 
 
 def cmd_validate(args):
+    plan_dir = Path(args.data)
     db_path  = Path(args.db)
-    data_dir = Path(args.data)
-    snapshots_dir = Path(args.snapshots) if args.snapshots else SNAPSHOTS_DIR / data_dir.name
+    snapshots_dir = Path(args.snapshots) if args.snapshots else SNAPSHOTS_DIR / plan_dir.name
 
     if not db_path.exists():
         print(f"Error: database not found at {db_path}", file=sys.stderr)
@@ -863,24 +1057,38 @@ def cmd_validate(args):
         if json_count != db_count:
             errors.append(f"{label}: JSON={json_count} vs DB={db_count}")
 
-    # Count comparisons
     def count_db(table): return conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-    def count_json(filename, key):
-        d = read_json(data_dir, filename)
+    def count_file(path, key):
+        d = read_json_file(path)
         if d is None: return 0
-        return len(d.get(key, d) if isinstance(d, dict) else d)
+        if isinstance(d, list): return len(d)
+        return len(d.get(key, []))
 
-    print("\n── Record count comparisons ─────────────────────")
-    check("addresses",                count_json('addresses.json', 'addresses'),               count_db('addresses'))
-    check("people",                   count_json('people.json', 'people'),                     count_db('people'))
-    check("properties",               count_json('real_estate.json', 'properties'),            count_db('properties'))
-    check("bank_accounts",            count_json('bank_accounts.json', 'bank_accounts'),       count_db('bank_accounts'))
-    check("contracts",                count_json('contracts.json', 'contracts'),               count_db('contracts'))
-    check("periodic_expenses",        count_json('periodic_expenses.json', 'periodic_expenses'), count_db('periodic_expenses'))
-    check("mortgages",                count_json('mortgages.json', None),                      count_db('mortgages'))
-    check("incomes",                  count_json('incomes.json', 'incomes'),                   count_db('incomes'))
+    # Read plan members
+    plan_json = read_json_file(plan_dir / 'plan.json')
+    members = plan_json.get('members', []) if plan_json else []
+
+    print("\n── Shared data ─────────────────────────────────")
+    check("addresses",   count_file(SHARED_DIR / 'addresses.json',  'addresses'),  count_db('addresses'))
+    check("properties",  count_file(SHARED_DIR / 'real_estate.json', 'properties'), count_db('properties'))
+    check("mortgages",   count_file(SHARED_DIR / 'mortgages.json',   None),         count_db('mortgages'))
+
+    print("\n── People data ─────────────────────────────────")
+    total_contracts = total_incomes = total_pe = total_ba = 0
+    for slug in members:
+        person_dir = PEOPLE_DIR / slug
+        total_contracts += count_file(person_dir / 'contracts.json',         'contracts')
+        total_incomes   += count_file(person_dir / 'incomes.json',           'incomes')
+        total_pe        += count_file(person_dir / 'periodic_expenses.json', 'periodic_expenses')
+        total_ba        += count_file(person_dir / 'bank_accounts.json',     'bank_accounts')
+    check("people",            len(members),    count_db('people'))
+    check("contracts",         total_contracts, count_db('contracts'))
+    check("incomes",           total_incomes,   count_db('incomes'))
+    check("periodic_expenses", total_pe,        count_db('periodic_expenses'))
+    check("bank_accounts",     total_ba,        count_db('bank_accounts'))
 
     # Snapshot count
+    print("\n── Snapshots ────────────────────────────────────")
     monthly_json  = len(list(snapshots_dir.glob('????-??.json'))) if snapshots_dir.exists() else 0
     annual_json   = len(list((snapshots_dir/'annual').glob('????.json'))) if (snapshots_dir/'annual').exists() else 0
     monthly_db    = conn.execute("SELECT COUNT(*) FROM snapshots WHERE type='monthly'").fetchone()[0]

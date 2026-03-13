@@ -44,6 +44,11 @@ CREATE TABLE IF NOT EXISTS timeline_milestones (id INTEGER PRIMARY KEY, project_
 CREATE TABLE IF NOT EXISTS snapshots (id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT NOT NULL CHECK(type IN ('monthly','annual')), year INTEGER NOT NULL, month INTEGER, label TEXT NOT NULL, generated_at TEXT NOT NULL, content TEXT NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_monthly ON snapshots(year, month) WHERE type='monthly';
 CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_annual  ON snapshots(year)        WHERE type='annual';
+CREATE TABLE IF NOT EXISTS budget_plans (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, currency TEXT DEFAULT 'EUR', owner_auth0_id TEXT, created_at TEXT);
+CREATE TABLE IF NOT EXISTS budget_plan_access (plan_id TEXT NOT NULL REFERENCES budget_plans(id), auth0_user_id TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'viewer', PRIMARY KEY (plan_id, auth0_user_id));
+CREATE TABLE IF NOT EXISTS virtual_contracts (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_id TEXT NOT NULL, title TEXT NOT NULL, category TEXT NOT NULL, direction TEXT NOT NULL DEFAULT 'expense', owner_id INTEGER REFERENCES people(id), monthly_cost REAL, start_date TEXT, end_date TEXT, notes TEXT);
+CREATE TABLE IF NOT EXISTS virtual_incomes (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_id TEXT NOT NULL, person_id INTEGER REFERENCES people(id), year INTEGER NOT NULL, avg_net_monthly_salary REAL, notes TEXT);
+CREATE TABLE IF NOT EXISTS virtual_periodic_expenses (id INTEGER PRIMARY KEY AUTOINCREMENT, plan_id TEXT NOT NULL, title TEXT NOT NULL, category TEXT NOT NULL, owner_id INTEGER REFERENCES people(id), payments TEXT, notes TEXT);
 `;
 
 /**

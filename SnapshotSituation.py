@@ -34,32 +34,62 @@ MONTH_NAMES = [
 ]
 
 BUDGET_PLANS_DIR = PROJECT_ROOT / "data" / "budget-plans"
+PEOPLE_DIR       = PROJECT_ROOT / "data" / "people"
+SHARED_DIR       = PROJECT_ROOT / "data" / "shared"
 
 
 def resolve_data_dir(plan_slug: str = None) -> Path:
-    """Resolve the data directory for a given plan slug.
+    """Resolve the budget-plan directory for a given slug.
     Falls back to the first plan folder found if no slug is given."""
     if plan_slug:
         p = BUDGET_PLANS_DIR / plan_slug
         if not p.exists():
             raise FileNotFoundError(f"Budget-plan not found: {p}")
         return p
-    # Auto-detect first plan
     plans = [d for d in BUDGET_PLANS_DIR.iterdir() if d.is_dir()] if BUDGET_PLANS_DIR.exists() else []
     if plans:
         return plans[0]
-    # Legacy fallback: flat data/ directory
-    return PROJECT_ROOT / "data"
+    raise FileNotFoundError(f"No budget-plans found in {BUDGET_PLANS_DIR}")
 
 
-# These are set by resolve() at startup — see bottom of file
-DATA_DIR   = None
+# These are set at startup in __main__ — see bottom of file
+PLAN_DIR   = None
 OUTPUT_DIR = None
 
 
-def read_json(filename: str) -> dict:
-    with open(DATA_DIR / filename, "r", encoding="utf-8") as f:
+def read_json_file(path: Path) -> dict:
+    """Read a JSON file from an absolute path. Returns empty dict if file missing."""
+    if not path.exists():
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+def load_plan_members_data(plan_dir: Path) -> tuple:
+    """Load merged datasets for all members of a plan plus virtual data.
+
+    Returns (contracts, incomes, periodic_expenses) with virtual items appended.
+    All items retain their original numeric IDs and owner_id/person_id fields.
+    """
+    plan = read_json_file(plan_dir / "plan.json")
+    member_slugs = plan.get("members", [])
+
+    all_contracts = []
+    all_incomes   = []
+    all_periodic  = []
+
+    for slug in member_slugs:
+        person_dir = PEOPLE_DIR / slug
+        all_contracts += read_json_file(person_dir / "contracts.json").get("contracts", [])
+        all_incomes   += read_json_file(person_dir / "incomes.json").get("incomes", [])
+        all_periodic  += read_json_file(person_dir / "periodic_expenses.json").get("periodic_expenses", [])
+
+    # Virtual data — additive only, scoped to this plan
+    all_contracts += read_json_file(plan_dir / "virtual_contracts.json").get("virtual_contracts", [])
+    all_incomes   += read_json_file(plan_dir / "virtual_incomes.json").get("virtual_incomes", [])
+    all_periodic  += read_json_file(plan_dir / "virtual_periodic_expenses.json").get("virtual_periodic_expenses", [])
+
+    return all_contracts, all_incomes, all_periodic
 
 
 def upsert_snapshot_to_db(snapshot: dict, snap_type: str):
@@ -194,9 +224,7 @@ _EMPTY_INCOME = {
 def generate_snapshot(year: int, month: int) -> dict:
     target = date(year, month, 1)
 
-    contracts         = read_json("contracts.json").get("contracts", [])
-    periodic_expenses = read_json("periodic_expenses.json").get("periodic_expenses", [])
-    incomes           = read_json("incomes.json").get("incomes", [])
+    contracts, incomes, periodic_expenses = load_plan_members_data(PLAN_DIR)
 
     income_contracts  = [c for c in contracts if c.get("direction") == "income"]
     expense_contracts = [c for c in contracts if c.get("direction", "expense") == "expense"]
@@ -322,9 +350,7 @@ def generate_snapshot(year: int, month: int) -> dict:
 
 def generate_annual_snapshot(year: int) -> dict:
     """Generate a full annual package snapshot — includes bonuses and actual payment totals."""
-    contracts         = read_json("contracts.json").get("contracts", [])
-    periodic_expenses = read_json("periodic_expenses.json").get("periodic_expenses", [])
-    incomes           = read_json("incomes.json").get("incomes", [])
+    contracts, incomes, periodic_expenses = load_plan_members_data(PLAN_DIR)
 
     income_contracts  = [c for c in contracts if c.get("direction") == "income"]
     expense_contracts = [c for c in contracts if c.get("direction", "expense") == "expense"]
@@ -454,11 +480,11 @@ if __name__ == "__main__":
     parser.add_argument('month', nargs='?', type=int, help='Month (MM)')
     parsed = parser.parse_args()
 
-    # Initialise global DATA_DIR and OUTPUT_DIR based on resolved plan
-    DATA_DIR   = resolve_data_dir(parsed.plan)
-    plan_slug  = DATA_DIR.name
+    # Initialise global PLAN_DIR and OUTPUT_DIR based on resolved plan
+    PLAN_DIR   = resolve_data_dir(parsed.plan)
+    plan_slug  = PLAN_DIR.name
     OUTPUT_DIR = PROJECT_ROOT / "output" / "snapshots" / plan_slug
-    print(f"[snapshot] Plan: {plan_slug}  data: {DATA_DIR}  output: {OUTPUT_DIR}")
+    print(f"[snapshot] Plan: {plan_slug}  plan_dir: {PLAN_DIR}  output: {OUTPUT_DIR}")
 
     if parsed.year and parsed.month:
         y, m = parsed.year, parsed.month
@@ -471,10 +497,10 @@ if __name__ == "__main__":
         print("Error: provide both YEAR and MONTH, or neither"); sys.exit(1)
     else:
         # Batch mode
-        config = read_json("snapshot_months.json")
+        config = read_json_file(PLAN_DIR / "snapshot_months.json")
         months = config.get("months", [])
         if not months:
-            print(f"No months configured in {DATA_DIR / 'snapshot_months.json'}")
+            print(f"No months configured in {PLAN_DIR / 'snapshot_months.json'}")
             sys.exit(1)
         print(f"Regenerating {len(months)} monthly snapshot(s)…")
         for entry in months:
