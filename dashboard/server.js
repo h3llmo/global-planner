@@ -46,11 +46,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(cookieParser());
 app.use(express.json());
 
-// Start DB initialization immediately at module load.
-// In dev mode this runs the Python import scripts (blocking via execSync inside initDb).
-// In production (Vercel) it simply loads the bundled finance.db into memory.
-// All dynamic routes await _dbReady before handling requests (cold-start safety).
-const _dbReady = db.initDb();
+// Start DB initialization for all plans at startup.
+const _dbReady = db.initAllPlans();
+
+// Middleware: wait for DB to be ready before any request
 app.use((req, res, next) => {
   _dbReady.then(() => next()).catch(err => {
     console.error('[server] DB not ready:', err.message);
@@ -61,9 +60,14 @@ app.use((req, res, next) => {
 function getActiveRole(req, permissionsConfig) {
   if (!req.oidc || !req.oidc.isAuthenticated()) return 'public';
 
+  // Manual role override via cookie (allows testing as other roles)
   const cookie = req.cookies && req.cookies.role;
   const validIds = permissionsConfig.roles.map(r => r.id);
   if (cookie && validIds.includes(cookie)) return cookie;
+
+  // Authenticated user linked to a person in this plan → owner
+  if (req.linkedPerson) return 'owner';
+
   return permissionsConfig.default_role;
 }
 
@@ -429,18 +433,69 @@ app.get('/api/indicators', async (req, res) => {
 });
 
 
-app.post('/role', requiresAuth(), async (req, res) => {
-  const { role } = req.body;
-  const permissionsConfig = await db.getPermissionsConfig();
-  const validIds = permissionsConfig.roles.map(r => r.id);
-  if (!validIds.includes(role)) {
-    return res.status(400).json({ error: 'Invalid role' });
-  }
-  res.cookie('role', role, { httpOnly: true, sameSite: 'strict' });
-  res.json({ ok: true });
+// ── Plan selector API ─────────────────────────────────────────────────────────
+
+app.get('/api/plans', (req, res) => {
+  res.json(db.listPlans());
 });
 
-app.get('/snapshots', async (req, res) => {
+// ── Plan selector page (home) ─────────────────────────────────────────────────
+
+app.get('/', (req, res) => {
+  const plans = db.listPlans();
+  if (plans.length === 1) return res.redirect(`/plan/${plans[0].id}`);
+  const oidcUser = (req.oidc && req.oidc.isAuthenticated())
+    ? { name: req.oidc.user.name, picture: req.oidc.user.picture }
+    : null;
+  const template = fs.readFileSync(path.join(__dirname, 'views', 'plans.html'), 'utf8');
+  const html = template
+    .replace('__PLANS_JSON__',      JSON.stringify(plans))
+    .replace('__USER_JSON__',       JSON.stringify(oidcUser))
+    .replace('__IS_PRODUCTION_JSON__', JSON.stringify(true));
+  res.send(html);
+});
+
+// ── Plan-scoped router ────────────────────────────────────────────────────────
+
+const planRouter = express.Router({ mergeParams: true });
+
+// Middleware: validate plan slug, set active DB, and link auth0 user → person
+planRouter.use(async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+    const plans = db.listPlans();
+    const plan  = plans.find(p => p.id === slug);
+    if (!plan) return res.status(404).send(`Plan "${slug}" not found.`);
+    db.setActivePlan(slug);
+    req.activePlan = plan;
+
+    // If authenticated, look up which person in this plan owns this auth0 account
+    if (req.oidc && req.oidc.isAuthenticated() && req.oidc.user.email) {
+      req.linkedPerson = await db.getPersonByAuth0Email(req.oidc.user.email) || null;
+    }
+
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.use('/plan/:slug', planRouter);
+
+planRouter.post('/role', requiresAuth(), async (req, res) => {
+  const { role } = req.body;
+  try {
+    const permissionsConfig = await db.getPermissionsConfig();
+    const validIds = permissionsConfig.roles.map(r => r.id);
+    if (!validIds.includes(role)) return res.status(400).json({ error: 'Invalid role' });
+    res.cookie('role', role, { httpOnly: true, sameSite: 'lax' });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+planRouter.get('/snapshots', async (req, res) => {
   try {
     const months = await db.listSnapshotMonths();
     res.json(months);
@@ -449,7 +504,7 @@ app.get('/snapshots', async (req, res) => {
   }
 });
 
-app.get('/snapshots/annual', async (req, res) => {
+planRouter.get('/snapshots/annual', async (req, res) => {
   try {
     const years = await db.listSnapshotYears();
     res.json(years);
@@ -458,7 +513,7 @@ app.get('/snapshots/annual', async (req, res) => {
   }
 });
 
-app.get('/snapshots/annual/:year', async (req, res) => {
+planRouter.get('/snapshots/annual/:year', async (req, res) => {
   const { year } = req.params;
   if (!/^\d{4}$/.test(year)) return res.status(400).json({ error: 'Invalid year format. Expected YYYY.' });
   try {
@@ -473,7 +528,7 @@ app.get('/snapshots/annual/:year', async (req, res) => {
   }
 });
 
-app.get('/snapshots/:month', async (req, res) => {
+planRouter.get('/snapshots/:month', async (req, res) => {
   const { month } = req.params;
   if (!/^\d{4}-\d{2}$/.test(month)) {
     return res.status(400).json({ error: 'Invalid month format. Expected YYYY-MM.' });
@@ -491,11 +546,13 @@ app.get('/snapshots/:month', async (req, res) => {
   }
 });
 
-app.get('/', async (req, res) => {
+planRouter.get('/', async (req, res) => {
   try {
     const permissionsConfig = await db.getPermissionsConfig();
     const activeRole = getActiveRole(req, permissionsConfig);
     const perms      = getRolePermissions(activeRole, permissionsConfig);
+
+    const allPlans = db.listPlans();
 
     const [
       { people },
@@ -561,6 +618,8 @@ app.get('/', async (req, res) => {
       .replace('__ROLE_JSON__',               JSON.stringify(activeRole))
       .replace('__PERMISSIONS_CONFIG_JSON__', JSON.stringify(permissionsConfig))
       .replace('__USER_JSON__',               JSON.stringify(oidcUser))
+      .replace('__PLAN_JSON__',               JSON.stringify(req.activePlan))
+      .replace('__ALL_PLANS_JSON__',          JSON.stringify(allPlans))
       .replace('__IS_PRODUCTION_JSON__',      JSON.stringify(true));
 
     res.send(html);

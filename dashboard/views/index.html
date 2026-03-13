@@ -12,7 +12,16 @@
 
 <nav class="navbar navbar-dark bg-dark mb-4">
   <div class="container">
-    <span class="navbar-brand fw-bold" data-i18n="appTitle"></span>
+    <div class="d-flex align-items-center gap-2">
+      <a class="navbar-brand fw-bold text-decoration-none" href="/"><i class="bi bi-bar-chart-line me-1"></i></a>
+      <!-- Plan selector dropdown -->
+      <div class="dropdown" id="plan-selector-wrap">
+        <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" id="plan-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-folder2-open me-1"></i><span id="plan-name-label"></span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-dark" id="plan-dropdown-menu" aria-labelledby="plan-dropdown"></ul>
+      </div>
+    </div>
     <div class="d-flex align-items-center gap-3 flex-wrap">
       <span class="navbar-text text-light" id="phase-badge"></span>
       <div class="btn-group btn-group-sm" id="perspective-btns" role="group"></div>
@@ -224,6 +233,9 @@
   const permissionsConfig = __PERMISSIONS_CONFIG_JSON__;
   const currentUser = __USER_JSON__;        // {name, email, picture} or null
   const isProduction = __IS_PRODUCTION_JSON__;  // false on localhost
+  const activePlan  = __PLAN_JSON__;        // {id, name, members, ...}
+  const allPlans    = __ALL_PLANS_JSON__;   // [{id, name, ...}]
+  const PLAN_BASE   = `/plan/${activePlan.id}`;  // base URL for plan-scoped API calls
   const activePerms = new Set(
     (permissionsConfig.roles.find(r => r.id === activeRole) || {}).permissions || []
   );
@@ -608,7 +620,7 @@
   }
 
   async function setRole(role) {
-    await fetch('/role', {
+    await fetch(`${PLAN_BASE}/role`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ role })
@@ -986,7 +998,7 @@
 
   async function initSnapshots() {
     try {
-      const months = await fetch('/snapshots').then(r => r.json());
+      const months = await fetch(`${PLAN_BASE}/snapshots`).then(r => r.json());
       _availableMonths = months;
       if (months.length > 0) {
         // Default to the snapshot nearest to the current month (prefer current or future)
@@ -997,7 +1009,7 @@
           if (months[i] >= currentYM) { best = i; break; }
         }
         _currentMonthIdx = best;
-        _currentSnapshot = await fetch(`/snapshots/${months[_currentMonthIdx]}`).then(r => r.json());
+        _currentSnapshot = await fetch(`${PLAN_BASE}/snapshots/${months[_currentMonthIdx]}`).then(r => r.json());
       }
     } catch (e) {
       console.error('Failed to load snapshots', e);
@@ -1010,7 +1022,7 @@
     const newIdx = _currentMonthIdx + dir;
     if (newIdx < 0 || newIdx >= _availableMonths.length) return;
     _currentMonthIdx = newIdx;
-    _currentSnapshot = await fetch(`/snapshots/${_availableMonths[_currentMonthIdx]}`).then(r => r.json());
+    _currentSnapshot = await fetch(`${PLAN_BASE}/snapshots/${_availableMonths[_currentMonthIdx]}`).then(r => r.json());
     renderSnapshotSection();
   };
 
@@ -1157,7 +1169,7 @@
 
   async function initAnnualSnapshots() {
     try {
-      const years = await fetch('/snapshots/annual').then(r => r.json());
+      const years = await fetch(`${PLAN_BASE}/snapshots/annual`).then(r => r.json());
       _availableAnnualYears = years;
       if (years.length > 0) {
         // Default to current year, or nearest available
@@ -1167,7 +1179,7 @@
           if (years[i] >= currentYear) { best = i; break; }
         }
         _currentYearIdx = best;
-        _currentAnnualSnapshot = await fetch(`/snapshots/annual/${years[best]}`).then(r => r.json());
+        _currentAnnualSnapshot = await fetch(`${PLAN_BASE}/snapshots/annual/${years[best]}`).then(r => r.json());
       }
     } catch (e) {
       console.error('Failed to load annual snapshots', e);
@@ -1180,7 +1192,7 @@
     const newIdx = _currentYearIdx + dir;
     if (newIdx < 0 || newIdx >= _availableAnnualYears.length) return;
     _currentYearIdx = newIdx;
-    _currentAnnualSnapshot = await fetch(`/snapshots/annual/${_availableAnnualYears[newIdx]}`).then(r => r.json());
+    _currentAnnualSnapshot = await fetch(`${PLAN_BASE}/snapshots/annual/${_availableAnnualYears[newIdx]}`).then(r => r.json());
     renderAnnualSnapshotSection();
   };
 
@@ -1340,6 +1352,15 @@
     document.getElementById('lang-fr').classList.toggle('active', lang === 'fr');
     document.getElementById('lang-en').classList.toggle('active', lang === 'en');
     document.getElementById('phase-badge').textContent = t('phaseBadge');
+
+    // Plan selector
+    document.getElementById('plan-name-label').textContent = activePlan.name || activePlan.id;
+    const planMenu = document.getElementById('plan-dropdown-menu');
+    planMenu.innerHTML = allPlans.map(p =>
+      `<li><a class="dropdown-item ${p.id === activePlan.id ? 'active' : ''}" href="/plan/${p.id}">
+         <i class="bi bi-folder2${p.id === activePlan.id ? '-open' : ''} me-2"></i>${p.name || p.id}
+       </a></li>`
+    ).join('');
 
     // Role selector: always visible in dev; in production only when authenticated
     // Role selector: visible in dev always; in production only when authenticated

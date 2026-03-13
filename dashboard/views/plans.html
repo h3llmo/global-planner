@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Budget Plans</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    body { background: #f8f9fa; }
+    .plan-card {
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      border: 2px solid transparent;
+    }
+    .plan-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(0,0,0,.12);
+      border-color: #0d6efd;
+    }
+    .plan-card .icon { font-size: 2.5rem; color: #0d6efd; }
+    .hero { padding: 4rem 0 2rem; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark px-4 d-flex justify-content-between align-items-center">
+  <a class="navbar-brand fw-bold" href="/"><i class="bi bi-bar-chart-line me-2"></i>Budget Plan</a>
+  <div id="auth-widget"></div>
+</nav>
+
+<div class="container hero text-center mb-4">
+  <h1 class="fw-bold mb-2">Your Budget Plans</h1>
+  <p class="text-muted">Select a plan to open its dashboard.</p>
+</div>
+
+<div class="container mb-5">
+  <div class="row justify-content-center g-4" id="plan-list"></div>
+</div>
+
+<script>
+  const PLANS = __PLANS_JSON__;
+  const currentUser = __USER_JSON__;
+  const isProduction = __IS_PRODUCTION_JSON__;
+
+  // Auth widget
+  const authEl = document.getElementById('auth-widget');
+  if (isProduction) {
+    if (currentUser) {
+      authEl.innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+          ${currentUser.picture ? `<img src="${currentUser.picture}" class="rounded-circle" width="32" height="32" alt="">` : ''}
+          <span class="text-light small">${currentUser.name || ''}</span>
+          <a href="/logout" class="btn btn-sm btn-outline-light">Logout</a>
+        </div>`;
+    } else {
+      authEl.innerHTML = `<a href="/login" class="btn btn-sm btn-outline-light">Login</a>`;
+    }
+  }
+
+  // Render plan cards
+  const list = document.getElementById('plan-list');
+  if (PLANS.length === 0) {
+    list.innerHTML = `<div class="col-12 text-center text-muted">No budget plans found.</div>`;
+  } else {
+    PLANS.forEach(plan => {
+      const memberCount = (plan.members || []).length;
+      list.innerHTML += `
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="card plan-card h-100 p-4" onclick="window.location='/plan/${plan.id}'">
+            <div class="card-body text-center">
+              <div class="icon mb-3"><i class="bi bi-folder2-open"></i></div>
+              <h5 class="card-title fw-semibold mb-1">${plan.name || plan.id}</h5>
+              ${plan.description ? `<p class="text-muted small mb-2">${plan.description}</p>` : ''}
+              <span class="badge bg-secondary"><i class="bi bi-people me-1"></i>${memberCount} member${memberCount !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="card-footer text-center bg-transparent border-0 pb-2">
+              <span class="btn btn-primary btn-sm">Open <i class="bi bi-arrow-right ms-1"></i></span>
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

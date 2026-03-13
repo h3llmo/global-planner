@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS people (
     id_card_expiry       TEXT,
     phone                TEXT,
     email                TEXT,
+    auth0_email          TEXT,
     role                 TEXT,
     occupation_location  TEXT,
     occupation_company   TEXT,
@@ -378,13 +379,13 @@ def import_people(conn, data):
         occ = r.get('occupation') or {}
         conn.execute(
             """INSERT INTO people (id, name, birth_date, gender, address_id, national_number_be, cns_lu,
-               id_card_number, id_card_expiry, phone, email, role,
+               id_card_number, id_card_expiry, phone, email, auth0_email, role,
                occupation_location, occupation_company, occupation_position)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (r['id'], r['name'], r.get('birth_date'), r.get('gender'), r.get('address_id'),
              r.get('national_number_be'), r.get('cns_lu'),
              card.get('number'), card.get('expiry'),
-             contact.get('phone'), contact.get('email'), r.get('role'),
+             contact.get('phone'), contact.get('email'), r.get('auth0_email'), r.get('role'),
              occ.get('location'), occ.get('company'), occ.get('position'))
         )
     return len(rows)

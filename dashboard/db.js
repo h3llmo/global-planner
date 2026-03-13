@@ -1,11 +1,8 @@
 /**
  * db.js — SQLite data access module for the finance dashboard.
  *
- * Uses sql.js (pure WebAssembly SQLite) to read from finance.db.
- * The DB is loaded once at startup and kept in memory (read-heavy, write from Python).
- *
- * All public functions return the same data shapes as the original readJson() calls
- * so server.js filter functions remain unchanged.
+ * Supports multiple budget-plans: each plan gets its own DB file (finance-<slug>.db).
+ * Call initAllPlans() at startup, then setActivePlan(slug) per request.
  */
 
 'use strict';
@@ -15,16 +12,20 @@ const path          = require('path');
 const { execSync }  = require('child_process');
 const initSqlJs     = require('sql.js');
 
-const DB_PATH      = path.join(__dirname, 'finance.db');
-const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
+const PROJECT_ROOT    = path.resolve(__dirname, '..', '..');
 const DATA_MANAGER    = path.join(PROJECT_ROOT, 'apps', 'DataManager.py');
 const SNAPSHOT_SCRIPT = path.join(PROJECT_ROOT, 'apps', 'SnapshotSituation.py');
+const BUDGET_PLANS_DIR = path.join(PROJECT_ROOT, 'data', 'budget-plans');
+
+function getDbPath(slug) {
+  return path.join(__dirname, `finance-${slug}.db`);
+}
 
 // SQLite schema — mirrors DataManager.py SCHEMA_SQL (kept in sync manually)
 const SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS addresses (id INTEGER PRIMARY KEY, street_number TEXT, street_name TEXT NOT NULL, postal_code TEXT NOT NULL, city TEXT NOT NULL, country_code TEXT NOT NULL, country TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS people (id INTEGER PRIMARY KEY, name TEXT NOT NULL, birth_date TEXT, gender TEXT, address_id INTEGER REFERENCES addresses(id), national_number_be TEXT, cns_lu TEXT, id_card_number TEXT, id_card_expiry TEXT, phone TEXT, email TEXT, role TEXT, occupation_location TEXT, occupation_company TEXT, occupation_position TEXT);
+CREATE TABLE IF NOT EXISTS people (id INTEGER PRIMARY KEY, name TEXT NOT NULL, birth_date TEXT, gender TEXT, address_id INTEGER REFERENCES addresses(id), national_number_be TEXT, cns_lu TEXT, id_card_number TEXT, id_card_expiry TEXT, phone TEXT, email TEXT, auth0_email TEXT, role TEXT, occupation_location TEXT, occupation_company TEXT, occupation_position TEXT);
 CREATE TABLE IF NOT EXISTS properties (id INTEGER PRIMARY KEY, address_id INTEGER NOT NULL REFERENCES addresses(id), type TEXT NOT NULL, status TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS property_owners (property_id INTEGER NOT NULL REFERENCES properties(id), person_id INTEGER NOT NULL REFERENCES people(id), PRIMARY KEY (property_id, person_id));
 CREATE TABLE IF NOT EXISTS bank_accounts (id INTEGER PRIMARY KEY AUTOINCREMENT, person_id INTEGER NOT NULL REFERENCES people(id), bank TEXT NOT NULL, country TEXT NOT NULL, iban TEXT NOT NULL UNIQUE, bic TEXT, type TEXT NOT NULL);
@@ -53,109 +54,146 @@ CREATE TABLE IF NOT EXISTS virtual_periodic_expenses (id INTEGER PRIMARY KEY AUT
 
 /**
  * Initialize the database based on environment:
- *   development (default) — reimport all data from JSON files via DataManager.py
- *   production            — create empty schema if DB doesn't already exist
+ *   development — reimport from JSON files via DataManager.py
+ *   production  — create empty schema if DB doesn't exist
  *
- * Call once at server startup before any queries.
+ * @param {string} slug  Budget-plan slug (e.g. 'foyer-pascual-anaelle')
  */
-async function initDb() {
-  const isProd = process.env.NODE_ENV === 'production';
+async function initDb(slug) {
+  const isProd  = process.env.NODE_ENV === 'production';
+  const dbPath  = getDbPath(slug);
 
   if (isProd) {
-    // Production: create empty schema once; do NOT overwrite existing data
-    if (!fs.existsSync(DB_PATH)) {
-      console.log('[db] Production mode — creating empty schema at', DB_PATH);
+    if (!fs.existsSync(dbPath)) {
+      console.log(`[db] Production mode — creating empty schema at ${dbPath}`);
       const SQL = await _getSql();
       const emptyDb = new SQL.Database();
       emptyDb.run(SCHEMA_SQL);
       const data = emptyDb.export();
       try {
-        fs.writeFileSync(DB_PATH, Buffer.from(data));
+        fs.writeFileSync(dbPath, Buffer.from(data));
         emptyDb.close();
         console.log('[db] Empty database created.');
       } catch (writeErr) {
-        // Vercel / read-only filesystem: keep DB in WASM memory only
         console.warn('[db] Filesystem is read-only (%s) — DB will be memory-only.', writeErr.code);
-        _memoryOnlyDb = emptyDb;
+        _planState[slug] = { memoryOnlyDb: emptyDb, db: null, loadedMtime: 0 };
       }
     } else {
-      console.log('[db] Production mode — using existing database.');
+      console.log(`[db] Production mode — using existing database for ${slug}.`);
     }
     return;
   }
 
-  // Development: always reimport from JSON data files
-  console.log('[db] Development mode — importing data from JSON files…');
+  // Development: reimport from JSON
+  console.log(`[db] Importing data for plan: ${slug}…`);
   try {
-    const planArg = process.env.BUDGET_PLAN ? `--plan "${process.env.BUDGET_PLAN}"` : '';
-    console.log('[db] Regenerating snapshots…');
-    execSync(`python "${SNAPSHOT_SCRIPT}" ${planArg}`, {
-      stdio: 'inherit',
-      cwd: PROJECT_ROOT,
+    execSync(`python "${SNAPSHOT_SCRIPT}" --plan "${slug}"`, {
+      stdio: 'inherit', cwd: PROJECT_ROOT,
       env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
     });
-    execSync(`python "${DATA_MANAGER}" --db "${DB_PATH}" ${planArg} create`, {
-      stdio: 'inherit',
-      cwd: PROJECT_ROOT,
+    execSync(`python "${DATA_MANAGER}" --db "${dbPath}" --plan "${slug}" create`, {
+      stdio: 'inherit', cwd: PROJECT_ROOT,
       env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
     });
-    console.log('[db] Import complete.');
+    console.log(`[db] Import complete for ${slug}.`);
   } catch (e) {
-    console.error('[db] DataManager.py import failed:', e.message);
-    console.error('[db] Falling back to existing DB (or empty schema if none exists).');
-    if (!fs.existsSync(DB_PATH)) {
-      // Last resort: create empty schema so server can at least start
+    console.error(`[db] Import failed for ${slug}:`, e.message);
+    if (!fs.existsSync(dbPath)) {
       const SQL = await _getSql();
       const emptyDb = new SQL.Database();
       emptyDb.run(SCHEMA_SQL);
       const data = emptyDb.export();
-      fs.writeFileSync(DB_PATH, Buffer.from(data));
+      fs.writeFileSync(dbPath, Buffer.from(data));
       emptyDb.close();
     }
   }
-  // Force reload after import
-  _db = null;
-  _loadedMtime = 0;
+  // Force reload
+  if (_planState[slug]) {
+    _planState[slug].db = null;
+    _planState[slug].loadedMtime = 0;
+  }
 }
 
-/** @type {import('sql.js').Database|null} */
-let _db          = null;
-let _loadPromise = null;
-let _loadedMtime = 0;
-// Set when the filesystem is read-only and the DB lives only in WASM memory
-let _memoryOnlyDb = null;
+/** Initialize DBs for all plans found in data/budget-plans/ */
+async function initAllPlans() {
+  const slugs = _getLocalPlanSlugs();
+  if (slugs.length === 0) {
+    console.warn('[db] No budget-plans found — starting with empty schema.');
+    return;
+  }
+  for (const slug of slugs) {
+    await initDb(slug);
+  }
+}
 
-/** Ensure sql.js WASM is initialized exactly once */
+/** List plan slugs from the filesystem (local budget-plans directory) */
+function _getLocalPlanSlugs() {
+  if (!fs.existsSync(BUDGET_PLANS_DIR)) return [];
+  return fs.readdirSync(BUDGET_PLANS_DIR)
+    .filter(d => fs.statSync(path.join(BUDGET_PLANS_DIR, d)).isDirectory());
+}
+
+/** Read plan.json for all local plans and return metadata array */
+function listPlans() {
+  return _getLocalPlanSlugs().map(slug => {
+    const planFile = path.join(BUDGET_PLANS_DIR, slug, 'plan.json');
+    if (!fs.existsSync(planFile)) return { id: slug, name: slug, members: [] };
+    try {
+      return JSON.parse(fs.readFileSync(planFile, 'utf8'));
+    } catch {
+      return { id: slug, name: slug, members: [] };
+    }
+  });
+}
+
+// ── Per-plan DB state ──────────────────────────────────────────────────────────
+// Each slug maps to { db, loadedMtime, loadPromise, memoryOnlyDb }
+const _planState = {};
+let _activePlanSlug = null;
+
+/** Set the active plan slug for subsequent DB queries in this request cycle */
+function setActivePlan(slug) {
+  _activePlanSlug = slug;
+}
+
+/** @type {import('sql.js').SqlJsStatic|null} */
 let _sqlPromise = null;
 async function _getSql() {
   if (!_sqlPromise) _sqlPromise = initSqlJs({
-    // Explicitly point to the .wasm file so Vercel serverless can find it
     locateFile: file => require('path').join(__dirname, 'node_modules/sql.js/dist', file),
   });
   return _sqlPromise;
 }
 
-/** Load (or reload) the database from disk. Serialized — only one load at a time. */
-async function getDb() {
-  // Memory-only mode (e.g. Vercel with no bundled DB and read-only FS)
-  if (_memoryOnlyDb) return _memoryOnlyDb;
+/** Load (or return cached) the DB for the given slug */
+async function _getDbForSlug(slug) {
+  if (!_planState[slug]) _planState[slug] = { db: null, loadedMtime: 0, loadPromise: null, memoryOnlyDb: null };
+  const state = _planState[slug];
 
-  const mtime = fs.existsSync(DB_PATH) ? fs.statSync(DB_PATH).mtimeMs : 0;
-  // If already loaded and file hasn't changed, return cached instance
-  if (_db && mtime <= _loadedMtime) return _db;
-  // If a load is in progress, wait for it
-  if (_loadPromise) return _loadPromise;
+  if (state.memoryOnlyDb) return state.memoryOnlyDb;
 
-  _loadPromise = (async () => {
+  const dbPath = getDbPath(slug);
+  const mtime  = fs.existsSync(dbPath) ? fs.statSync(dbPath).mtimeMs : 0;
+  if (state.db && mtime <= state.loadedMtime) return state.db;
+  if (state.loadPromise) return state.loadPromise;
+
+  state.loadPromise = (async () => {
     const SQL    = await _getSql();
-    const buffer = fs.readFileSync(DB_PATH);
-    if (_db) { try { _db.close(); } catch (_) {} }
-    _db          = new SQL.Database(buffer);
-    _loadedMtime = mtime;
-    _loadPromise = null;
-    return _db;
+    const buffer = fs.readFileSync(dbPath);
+    if (state.db) { try { state.db.close(); } catch (_) {} }
+    state.db          = new SQL.Database(buffer);
+    state.loadedMtime = mtime;
+    state.loadPromise = null;
+    return state.db;
   })();
-  return _loadPromise;
+  return state.loadPromise;
+}
+
+/** Return the DB for the currently active plan */
+async function getDb() {
+  const slug = _activePlanSlug;
+  if (!slug) throw new Error('No active plan set — call setActivePlan(slug) first.');
+  return _getDbForSlug(slug);
 }
 
 /** Run a SELECT and return rows as array of plain objects */
@@ -401,8 +439,18 @@ async function getAnnualSnapshot(year) {
   return row ? JSON.parse(row.content) : null;
 }
 
+/** Find a person in the active plan's DB whose auth0_email matches the given email */
+async function getPersonByAuth0Email(email) {
+  if (!email) return null;
+  const db = await getDb();
+  return queryOne(db, 'SELECT id, name FROM people WHERE auth0_email = ?', [email]);
+}
+
 module.exports = {
   initDb,
+  initAllPlans,
+  setActivePlan,
+  listPlans,
   getAddresses,
   getPeople,
   getRealEstate,
@@ -417,4 +465,5 @@ module.exports = {
   listSnapshotYears,
   getSnapshot,
   getAnnualSnapshot,
+  getPersonByAuth0Email,
 };
