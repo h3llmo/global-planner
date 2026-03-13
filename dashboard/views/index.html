@@ -1026,8 +1026,7 @@
       container.innerHTML = `
         <div class="card shadow-sm">
           <div class="card-body text-muted">
-            <p class="mb-1">${t('snapNoData')}</p>
-            <code class="small">${t('snapNoDataHint')}</code>
+            <p class="mb-0">${t('snapNoData')}</p>
           </div>
         </div>`;
       return;
@@ -1197,8 +1196,7 @@
       container.innerHTML = `
         <div class="card shadow-sm">
           <div class="card-body text-muted">
-            <p class="mb-1">${t('annSnapNoData')}</p>
-            <code class="small">${t('annSnapNoDataHint')}</code>
+            <p class="mb-0">${t('annSnapNoData')}</p>
           </div>
         </div>`;
       return;
@@ -1344,6 +1342,7 @@
     document.getElementById('phase-badge').textContent = t('phaseBadge');
 
     // Role selector: always visible in dev; in production only when authenticated
+    // Role selector: visible in dev always; in production only when authenticated
     if (!isProduction || currentUser) {
       const roleSelector = document.getElementById('role-selector');
       roleSelector.style.display = '';
@@ -1362,6 +1361,7 @@
           <span class="navbar-text text-light small d-none d-md-inline">${currentUser.name}</span>
           <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>`;
       } else {
+        // Anonymous in production: show login button only, no role selector
         authWidget.innerHTML = `<a href="/login" class="btn btn-outline-light btn-sm">Login</a>`;
       }
     }
