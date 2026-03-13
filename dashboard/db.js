@@ -123,7 +123,10 @@ let _memoryOnlyDb = null;
 /** Ensure sql.js WASM is initialized exactly once */
 let _sqlPromise = null;
 async function _getSql() {
-  if (!_sqlPromise) _sqlPromise = initSqlJs();
+  if (!_sqlPromise) _sqlPromise = initSqlJs({
+    // Explicitly point to the .wasm file so Vercel serverless can find it
+    locateFile: file => require('path').join(__dirname, 'node_modules/sql.js/dist', file),
+  });
   return _sqlPromise;
 }
 

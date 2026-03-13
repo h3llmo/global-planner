@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "server.js": {
+      "includeFiles": "node_modules/sql.js/dist/**"
+    }
+  },
   "rewrites": [
     { "source": "/(.*)", "destination": "/server.js" }
   ],
