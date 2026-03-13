@@ -1,52 +1,46 @@
-// Load .env in development (no-op if file absent or vars already set)
-if (process.env.NODE_ENV !== 'production') require('dotenv').config();
+// Load .env (no-op if vars already set — Vercel injects them at runtime)
+require('dotenv').config();
 
 const express      = require('express');
 const path         = require('path');
 const fs           = require('fs');
 const cookieParser = require('cookie-parser');
+const { auth, requiresAuth } = require('express-openid-connect');
 const db           = require('./db');
-
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// Auth0 OpenID Connect — only active in production (Vercel).
-// In development, Auth0 is skipped entirely so role switching works without a login flow.
-let requiresAuth = () => (_req, _res, next) => next(); // no-op factory in dev
-if (IS_PRODUCTION) {
-  const secret        = process.env.AUTH0_SESSION_SECRET;
-  const clientID      = process.env.AUTH0_CLIENT_ID;
-  const clientSecret  = process.env.AUTH0_CLIENT_SECRET;
-  const issuerBaseURL = process.env.AUTH0_ISSUER_BASE_URL;
+// Auth0 OpenID Connect — active in all environments.
+const secret        = process.env.AUTH0_SESSION_SECRET;
+const clientID      = process.env.AUTH0_CLIENT_ID;
+const clientSecret  = process.env.AUTH0_CLIENT_SECRET;
+const issuerBaseURL = process.env.AUTH0_ISSUER_BASE_URL;
 
-  if (!secret || !clientID || !clientSecret || !issuerBaseURL) {
-    console.error('[auth] Missing Auth0 env vars:', {
-      AUTH0_SESSION_SECRET:  !!secret,
-      AUTH0_CLIENT_ID:       !!clientID,
-      AUTH0_CLIENT_SECRET:   !!clientSecret,
-      AUTH0_ISSUER_BASE_URL: !!issuerBaseURL,
-    });
-    console.warn('[auth] Auth0 disabled — running without authentication');
-  } else {
-    const { auth, requiresAuth: _requiresAuth } = require('express-openid-connect');
-    requiresAuth = _requiresAuth;
-    const BASE_URL = process.env.BASE_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${PORT}`);
-    app.use(auth({
-      authRequired:  false,
-      auth0Logout:   true,
-      secret, clientID, clientSecret, issuerBaseURL,
-      baseURL:       BASE_URL,
-      authorizationParams: {
-        response_type: 'code',
-        scope: 'openid profile email',
-      },
-    }));
-    console.log('[auth] Auth0 enabled, baseURL:', BASE_URL);
-  }
+if (!secret || !clientID || !clientSecret || !issuerBaseURL) {
+  console.error('[auth] Missing Auth0 env vars — check your .env file:', {
+    AUTH0_SESSION_SECRET:  !!secret,
+    AUTH0_CLIENT_ID:       !!clientID,
+    AUTH0_CLIENT_SECRET:   !!clientSecret,
+    AUTH0_ISSUER_BASE_URL: !!issuerBaseURL,
+  });
+  process.exit(1);
 }
+
+const BASE_URL = process.env.BASE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${PORT}`);
+
+app.use(auth({
+  authRequired:  false,
+  auth0Logout:   true,
+  secret, clientID, clientSecret, issuerBaseURL,
+  baseURL:       BASE_URL,
+  authorizationParams: {
+    response_type: 'code',
+    scope: 'openid profile email',
+  },
+}));
+console.log('[auth] Auth0 enabled, baseURL:', BASE_URL);
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cookieParser());
@@ -65,11 +59,7 @@ app.use((req, res, next) => {
 });
 
 function getActiveRole(req, permissionsConfig) {
-  const isAuthenticated = IS_PRODUCTION
-    ? (req.oidc && req.oidc.isAuthenticated())
-    : true; // dev: always allow role switching
-
-  if (!isAuthenticated) return 'public';
+  if (!req.oidc || !req.oidc.isAuthenticated()) return 'public';
 
   const cookie = req.cookies && req.cookies.role;
   const validIds = permissionsConfig.roles.map(r => r.id);
@@ -551,8 +541,8 @@ app.get('/', async (req, res) => {
       incomeMap[inc.person_id].push(inc);
     }
 
-    // Expose Auth0 user to the template (production only)
-    const oidcUser = (IS_PRODUCTION && req.oidc && req.oidc.isAuthenticated())
+    // Expose Auth0 user to the template
+    const oidcUser = (req.oidc && req.oidc.isAuthenticated())
       ? { name: req.oidc.user.name, email: req.oidc.user.email, picture: req.oidc.user.picture }
       : null;
 
@@ -571,7 +561,7 @@ app.get('/', async (req, res) => {
       .replace('__ROLE_JSON__',               JSON.stringify(activeRole))
       .replace('__PERMISSIONS_CONFIG_JSON__', JSON.stringify(permissionsConfig))
       .replace('__USER_JSON__',               JSON.stringify(oidcUser))
-      .replace('__IS_PRODUCTION_JSON__',      JSON.stringify(IS_PRODUCTION));
+      .replace('__IS_PRODUCTION_JSON__',      JSON.stringify(true));
 
     res.send(html);
   } catch (e) {
