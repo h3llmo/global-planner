@@ -37,6 +37,10 @@ if (IS_PRODUCTION) {
       auth0Logout:   true,
       secret, clientID, issuerBaseURL,
       baseURL:       BASE_URL,
+      authorizationParams: {
+        response_type: 'code',
+        scope: 'openid profile email',
+      },
     }));
     console.log('[auth] Auth0 enabled, baseURL:', BASE_URL);
   }
