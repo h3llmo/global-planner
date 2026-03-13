@@ -16,18 +16,30 @@ const PORT = process.env.PORT || 3000;
 // In development, Auth0 is skipped entirely so role switching works without a login flow.
 let requiresAuth = () => (_req, _res, next) => next(); // no-op factory in dev
 if (IS_PRODUCTION) {
-  const { auth, requiresAuth: _requiresAuth } = require('express-openid-connect');
-  requiresAuth = _requiresAuth;
-  const BASE_URL = process.env.BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${PORT}`);
-  app.use(auth({
-    authRequired:  false,
-    auth0Logout:   true,
-    secret:        process.env.AUTH0_SESSION_SECRET,
-    baseURL:       BASE_URL,
-    clientID:      process.env.AUTH0_CLIENT_ID,
-    issuerBaseURL: process.env.AUTH0_ISSUER_BASE_URL,
-  }));
+  const secret        = process.env.AUTH0_SESSION_SECRET;
+  const clientID      = process.env.AUTH0_CLIENT_ID;
+  const issuerBaseURL = process.env.AUTH0_ISSUER_BASE_URL;
+
+  if (!secret || !clientID || !issuerBaseURL) {
+    console.error('[auth] Missing Auth0 env vars:', {
+      AUTH0_SESSION_SECRET:  !!secret,
+      AUTH0_CLIENT_ID:       !!clientID,
+      AUTH0_ISSUER_BASE_URL: !!issuerBaseURL,
+    });
+    console.warn('[auth] Auth0 disabled — running without authentication');
+  } else {
+    const { auth, requiresAuth: _requiresAuth } = require('express-openid-connect');
+    requiresAuth = _requiresAuth;
+    const BASE_URL = process.env.BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : `http://localhost:${PORT}`);
+    app.use(auth({
+      authRequired:  false,
+      auth0Logout:   true,
+      secret, clientID, issuerBaseURL,
+      baseURL:       BASE_URL,
+    }));
+    console.log('[auth] Auth0 enabled, baseURL:', BASE_URL);
+  }
 }
 
 app.use(express.static(path.join(__dirname, 'public')));
