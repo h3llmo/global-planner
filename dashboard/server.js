@@ -68,6 +68,9 @@ function getActiveRole(req, permissionsConfig) {
   // Authenticated user linked to a person in this plan → owner
   if (req.linkedPerson) return 'owner';
 
+  // Trusted partner with explicit access grant
+  if (req.linkedAccess) return req.linkedAccess.role;
+
   return permissionsConfig.default_role;
 }
 
@@ -435,8 +438,58 @@ app.get('/api/indicators', async (req, res) => {
 
 // ── Plan selector API ─────────────────────────────────────────────────────────
 
+const BUDGET_PLANS_DIR = path.resolve(__dirname, '..', '..', 'data', 'budget-plans');
+
 app.get('/api/plans', (req, res) => {
   res.json(db.listPlans());
+});
+
+app.get('/api/people', (req, res) => {
+  res.json(db.listPeople());
+});
+
+app.post('/api/plans', requiresAuth(), async (req, res) => {
+  try {
+    const { id, name, description, currency, members, access } = req.body;
+    if (!id || !name) return res.status(400).json({ error: 'id and name are required.' });
+    if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(id) && id.length > 1)
+      return res.status(400).json({ error: 'id must use lowercase letters, numbers, and hyphens.' });
+
+    const planDir = path.join(BUDGET_PLANS_DIR, id);
+    if (fs.existsSync(planDir)) return res.status(409).json({ error: `A plan with id "${id}" already exists.` });
+
+    fs.mkdirSync(planDir, { recursive: true });
+
+    const planData = {
+      id,
+      name,
+      description:   description || '',
+      currency:      currency    || 'EUR',
+      created_at:    new Date().toISOString().slice(0, 10),
+      owner_auth0_id: null,
+      members:        members || [],
+      access:         (access || [])
+                        .filter(a => a.email && a.email.trim())
+                        .map(a => ({ auth0_email: a.email.trim(), role: a.role || 'consultant' })),
+    };
+    fs.writeFileSync(path.join(planDir, 'plan.json'), JSON.stringify(planData, null, 2));
+
+    const emptyFiles = {
+      'timeline.json':                    { project: { name, description: '', currency: planData.currency, milestones: [] } },
+      'virtual_contracts.json':           { virtual_contracts: [] },
+      'virtual_incomes.json':             { virtual_incomes: [] },
+      'virtual_periodic_expenses.json':   { virtual_periodic_expenses: [] },
+      'snapshot_months.json':             { months: [] },
+    };
+    for (const [file, content] of Object.entries(emptyFiles))
+      fs.writeFileSync(path.join(planDir, file), JSON.stringify(content, null, 2));
+
+    await db.initDb(id);
+    res.status(201).json({ id, name, url: `/plan/${id}` });
+  } catch (err) {
+    console.error('[api/plans POST]', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Plan selector page (home) ─────────────────────────────────────────────────
@@ -449,8 +502,9 @@ app.get('/', (req, res) => {
     : null;
   const template = fs.readFileSync(path.join(__dirname, 'views', 'plans.html'), 'utf8');
   const html = template
-    .replace('__PLANS_JSON__',      JSON.stringify(plans))
-    .replace('__USER_JSON__',       JSON.stringify(oidcUser))
+    .replace('__PLANS_JSON__',         JSON.stringify(plans))
+    .replace('__PEOPLE_JSON__',        JSON.stringify(db.listPeople()))
+    .replace('__USER_JSON__',          JSON.stringify(oidcUser))
     .replace('__IS_PRODUCTION_JSON__', JSON.stringify(true));
   res.send(html);
 });
@@ -459,7 +513,7 @@ app.get('/', (req, res) => {
 
 const planRouter = express.Router({ mergeParams: true });
 
-// Middleware: validate plan slug, set active DB, and link auth0 user → person
+// Middleware: validate plan slug, set active DB, and link auth0 user → person or partner
 planRouter.use(async (req, res, next) => {
   try {
     const { slug } = req.params;
@@ -469,9 +523,15 @@ planRouter.use(async (req, res, next) => {
     db.setActivePlan(slug);
     req.activePlan = plan;
 
-    // If authenticated, look up which person in this plan owns this auth0 account
     if (req.oidc && req.oidc.isAuthenticated() && req.oidc.user.email) {
-      req.linkedPerson = await db.getPersonByAuth0Email(req.oidc.user.email) || null;
+      const email = req.oidc.user.email;
+      // Check if this user is a plan member (person profile with matching auth0_email)
+      req.linkedPerson = await db.getPersonByAuth0Email(email) || null;
+      // If not a member, check trusted partner access list in plan.json
+      if (!req.linkedPerson) {
+        const entry = (plan.access || []).find(a => a.auth0_email === email);
+        if (entry) req.linkedAccess = entry;
+      }
     }
 
     next();

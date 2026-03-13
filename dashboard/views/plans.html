@@ -7,7 +7,9 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <style>
-    body { background: #f8f9fa; }
+    body { background: #f0f2f5; }
+
+    /* ── Plan cards ─────────────────────────────────────────── */
     .plan-card {
       cursor: pointer;
       transition: transform 0.15s, box-shadow 0.15s;
@@ -20,9 +22,528 @@
     }
     .plan-card .icon { font-size: 2.5rem; color: #0d6efd; }
     .hero { padding: 4rem 0 2rem; }
+
+    /* ── Wizard step progress ───────────────────────────────── */
+    .wiz-progress {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+    .wiz-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      position: relative;
+    }
+    .wiz-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 17px; left: 50%;
+      width: 100%; height: 2px;
+      background: #dee2e6;
+      z-index: 0;
+      transition: background .3s;
+    }
+    .wiz-step.done:not(:last-child)::after { background: #0d6efd; }
+    .wiz-circle {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid #dee2e6; background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: .85rem; color: #adb5bd;
+      position: relative; z-index: 1;
+      transition: all .25s;
+    }
+    .wiz-step.active .wiz-circle  { border-color: #0d6efd; color: #0d6efd; box-shadow: 0 0 0 4px rgba(13,110,253,.12); }
+    .wiz-step.done   .wiz-circle  { background: #0d6efd; border-color: #0d6efd; color: #fff; }
+    .wiz-step.done   .wiz-circle::before { content: '✓'; }
+    .wiz-step.done   .wiz-circle span { display: none; }
+    .wiz-label {
+      font-size: .7rem; font-weight: 600; color: #adb5bd;
+      margin-top: 6px; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .wiz-step.active .wiz-label,
+    .wiz-step.done   .wiz-label { color: #0d6efd; }
+
+    /* ── Member cards ───────────────────────────────────────── */
+    .member-card {
+      cursor: pointer;
+      border: 2px solid #e9ecef; border-radius: 14px;
+      padding: 1.25rem .75rem; text-align: center;
+      transition: all .15s; position: relative; user-select: none;
+    }
+    .member-card:hover  { border-color: #86b7fe; background: #f5f9ff; }
+    .member-card.sel    { border-color: #0d6efd; background: #eef4ff; }
+    .member-check {
+      position: absolute; top: 8px; right: 8px;
+      font-size: 1.1rem; color: #0d6efd;
+      opacity: 0; transition: opacity .15s;
+    }
+    .member-card.sel .member-check { opacity: 1; }
+    .member-avatar {
+      width: 52px; height: 52px; border-radius: 50%;
+      background: linear-gradient(135deg,#0d6efd,#6f42c1);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 1rem; margin: 0 auto .75rem;
+      flex-shrink: 0;
+    }
+    .member-name    { font-weight: 600; font-size: .88rem; margin-bottom: 2px; }
+    .member-company { font-size: .72rem; color: #6c757d; }
+
+    /* ── Partner rows ───────────────────────────────────────── */
+    .partner-row { background: #f8f9fa; border-radius: 10px; padding: .6rem .9rem; }
+
+    /* ── Review ─────────────────────────────────────────────── */
+    .review-block {
+      background: #f8f9fa; border-radius: 12px;
+      padding: 1.1rem 1.25rem; margin-bottom: .85rem;
+    }
+    .review-block-label {
+      font-size: .7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .05em; color: #6c757d; margin-bottom: .65rem;
+    }
+    .mini-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(135deg,#0d6efd,#6f42c1);
+      color:#fff; display:flex; align-items:center; justify-content:center;
+      font-size:.65rem; font-weight:700; flex-shrink:0;
+    }
   </style>
 </head>
 <body>
+
+<nav class="navbar navbar-dark bg-dark px-4 d-flex justify-content-between align-items-center">
+  <a class="navbar-brand fw-bold" href="/"><i class="bi bi-bar-chart-line me-2"></i>Budget Plan</a>
+  <div id="auth-widget"></div>
+</nav>
+
+<div class="container hero text-center mb-4">
+  <h1 class="fw-bold mb-2">Your Budget Plans</h1>
+  <p class="text-muted">Select a plan to open its dashboard, or create a new one.</p>
+  <button class="btn btn-primary mt-1" data-bs-toggle="modal" data-bs-target="#createPlanModal">
+    <i class="bi bi-plus-circle me-2"></i>New Budget Plan
+  </button>
+</div>
+
+<div class="container mb-5">
+  <div class="row justify-content-center g-4" id="plan-list"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     CREATE PLAN WIZARD MODAL
+     ════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="createPlanModal" tabindex="-1" aria-labelledby="cpmLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content shadow-lg border-0">
+
+      <!-- Header -->
+      <div class="modal-header border-0 pb-1 pt-4 px-4">
+        <div>
+          <h5 class="modal-title fw-bold mb-0" id="cpmLabel">
+            <i class="bi bi-folder-plus text-primary me-2"></i>New Budget Plan
+          </h5>
+          <p class="text-muted small mb-0 mt-1">Set up your financial plan in a few steps.</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body px-4 pt-3 pb-2">
+
+        <!-- Step progress -->
+        <div class="wiz-progress">
+          <div class="wiz-step active" id="wsi-1"><div class="wiz-circle"><span>1</span></div><div class="wiz-label">Details</div></div>
+          <div class="wiz-step"        id="wsi-2"><div class="wiz-circle"><span>2</span></div><div class="wiz-label">Members</div></div>
+          <div class="wiz-step"        id="wsi-3"><div class="wiz-circle"><span>3</span></div><div class="wiz-label">Partners</div></div>
+          <div class="wiz-step"        id="wsi-4"><div class="wiz-circle"><span>4</span></div><div class="wiz-label">Review</div></div>
+        </div>
+
+        <!-- ── Step 1 · Plan Details ── -->
+        <div id="ws-1" class="wiz-pane">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Plan name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="w-name"
+                   placeholder="e.g. Foyer Dupont, My Solo Plan…" autocomplete="off">
+            <div class="invalid-feedback">Please enter a plan name.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Identifier <span class="text-muted fw-normal small">(slug)</span></label>
+            <div class="input-group">
+              <span class="input-group-text text-muted small">/plan/</span>
+              <input type="text" class="form-control font-monospace" id="w-slug"
+                     placeholder="auto-generated" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="form-text">Lowercase letters, numbers and hyphens only. Cannot be changed later.</div>
+            <div class="invalid-feedback" id="slug-err">Invalid or already taken.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Description <span class="text-muted fw-normal small">(optional)</span></label>
+            <textarea class="form-control" id="w-desc" rows="2"
+                      placeholder="Short description of this plan…"></textarea>
+          </div>
+          <div>
+            <label class="form-label fw-semibold">Currency</label>
+            <select class="form-select" id="w-currency">
+              <option value="EUR" selected>🇪🇺  EUR — Euro</option>
+              <option value="USD">🇺🇸  USD — US Dollar</option>
+              <option value="CHF">🇨🇭  CHF — Swiss Franc</option>
+              <option value="GBP">🇬🇧  GBP — British Pound</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ── Step 2 · Members ── -->
+        <div id="ws-2" class="wiz-pane d-none">
+          <p class="text-muted small mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            Select the people who belong to this household — they'll have full owner access to all data.
+          </p>
+          <div class="row g-3" id="w-people-grid"></div>
+          <p class="text-muted small mt-2 d-none" id="w-no-people">
+            No person profiles found in <code>data/people/</code>. You can add members later.
+          </p>
+        </div>
+
+        <!-- ── Step 3 · Trusted Partners ── -->
+        <div id="ws-3" class="wiz-pane d-none">
+          <p class="text-muted small mb-3">
+            <i class="bi bi-shield-check me-1"></i>
+            Invite trusted people outside your household. They'll log in with their own account and
+            see data according to their role — no full access.
+          </p>
+          <div id="w-partners" class="d-flex flex-column gap-2 mb-3"></div>
+          <button type="button" class="btn btn-outline-primary btn-sm" id="btn-add-partner">
+            <i class="bi bi-person-plus me-1"></i>Add a partner
+          </button>
+          <div class="mt-3">
+            <div class="d-flex gap-3 flex-wrap">
+              <div class="d-flex align-items-center gap-2 small text-muted">
+                <span class="badge bg-info text-dark">Consultant</span>
+                Sees financial figures &amp; bank data, no personal info
+              </div>
+              <div class="d-flex align-items-center gap-2 small text-muted">
+                <span class="badge bg-secondary">Viewer</span>
+                Sees only structural &amp; project data
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Step 4 · Review ── -->
+        <div id="ws-4" class="wiz-pane d-none">
+          <p class="text-muted small mb-3">Everything look good? Hit <strong>Create</strong> to set up your plan.</p>
+
+          <div class="review-block">
+            <div class="review-block-label"><i class="bi bi-folder2 me-1"></i>Plan</div>
+            <div class="d-flex align-items-start justify-content-between gap-2">
+              <div>
+                <div class="fw-semibold" id="rv-name"></div>
+                <code class="small text-primary" id="rv-slug"></code>
+                <div class="text-muted small mt-1" id="rv-desc"></div>
+              </div>
+              <span class="badge bg-light text-dark border fw-semibold fs-6 px-3" id="rv-currency"></span>
+            </div>
+          </div>
+
+          <div class="review-block" id="rv-members-block">
+            <div class="review-block-label"><i class="bi bi-people me-1"></i>Household members</div>
+            <div id="rv-members"></div>
+          </div>
+
+          <div class="review-block d-none" id="rv-partners-block">
+            <div class="review-block-label"><i class="bi bi-shield-lock me-1"></i>Trusted partners</div>
+            <div id="rv-partners"></div>
+          </div>
+
+          <div class="alert alert-danger d-none mt-2 mb-0 py-2" id="w-error"></div>
+        </div>
+
+      </div><!-- /modal-body -->
+
+      <!-- Footer -->
+      <div class="modal-footer border-0 pt-0 pb-3 px-4">
+        <button type="button" class="btn btn-outline-secondary" id="btn-back" style="display:none">
+          <i class="bi bi-arrow-left me-1"></i>Back
+        </button>
+        <button type="button" class="btn btn-primary ms-auto" id="btn-next">
+          Next <i class="bi bi-arrow-right ms-1"></i>
+        </button>
+        <button type="button" class="btn btn-success d-none ms-auto" id="btn-create">
+          <i class="bi bi-check-circle me-1"></i>Create Plan
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+<!-- ─────────────────────────────────────────────────────── -->
+
+<script>
+  const PLANS       = __PLANS_JSON__;
+  const PEOPLE      = __PEOPLE_JSON__;
+  const currentUser = __USER_JSON__;
+  const isProduction = __IS_PRODUCTION_JSON__;
+
+  // ── Auth widget ───────────────────────────────────────────────────────────
+  const authEl = document.getElementById('auth-widget');
+  if (isProduction) {
+    if (currentUser) {
+      authEl.innerHTML = `
+        <div class="d-flex align-items-center gap-2">
+          ${currentUser.picture ? `<img src="${currentUser.picture}" class="rounded-circle" width="32" height="32" alt="">` : ''}
+          <span class="text-light small">${currentUser.name || ''}</span>
+          <a href="/logout" class="btn btn-sm btn-outline-light">Logout</a>
+        </div>`;
+    } else {
+      authEl.innerHTML = `<a href="/login" class="btn btn-sm btn-outline-light">Login</a>`;
+    }
+  }
+
+  // ── Plan cards ────────────────────────────────────────────────────────────
+  const list = document.getElementById('plan-list');
+  if (!PLANS.length) {
+    list.innerHTML = `
+      <div class="col-12 text-center text-muted py-5">
+        <i class="bi bi-folder-x fs-1 d-block mb-3 opacity-25"></i>
+        <p class="mb-0">No budget plans yet — create your first one!</p>
+      </div>`;
+  } else {
+    PLANS.forEach(plan => {
+      const mc = (plan.members || []).length;
+      list.innerHTML += `
+        <div class="col-12 col-sm-6 col-lg-4">
+          <div class="card plan-card h-100 p-4" onclick="window.location='/plan/${plan.id}'">
+            <div class="card-body text-center">
+              <div class="icon mb-3"><i class="bi bi-folder2-open"></i></div>
+              <h5 class="card-title fw-semibold mb-1">${plan.name || plan.id}</h5>
+              ${plan.description ? `<p class="text-muted small mb-2">${plan.description}</p>` : ''}
+              <span class="badge bg-secondary"><i class="bi bi-people me-1"></i>${mc} member${mc !== 1 ? 's' : ''}</span>
+            </div>
+            <div class="card-footer text-center bg-transparent border-0 pb-2">
+              <span class="btn btn-primary btn-sm">Open <i class="bi bi-arrow-right ms-1"></i></span>
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+
+  // ════════════════════════════════════════════════════════
+  //  WIZARD
+  // ════════════════════════════════════════════════════════
+
+  let wizStep = 1;
+  const selMembers   = new Set();
+  let   partners     = [];
+  const existingSlugs = new Set(PLANS.map(p => p.id));
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function toSlug(s) {
+    return s.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+  }
+  function initials(name) {
+    return name.trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  }
+
+  // ── Auto-slug from name ───────────────────────────────────────────────────
+  const nameEl = document.getElementById('w-name');
+  const slugEl = document.getElementById('w-slug');
+  nameEl.addEventListener('input', () => {
+    if (!slugEl.dataset.manual) slugEl.value = toSlug(nameEl.value);
+  });
+  slugEl.addEventListener('input', () => {
+    slugEl.dataset.manual = '1';
+    slugEl.value = slugEl.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+  });
+
+  // ── Step 2: people grid ───────────────────────────────────────────────────
+  function renderPeople() {
+    const grid = document.getElementById('w-people-grid');
+    if (!PEOPLE.length) {
+      document.getElementById('w-no-people').classList.remove('d-none');
+      return;
+    }
+    grid.innerHTML = PEOPLE.map(p => `
+      <div class="col-6 col-sm-4">
+        <div class="member-card${selMembers.has(p.id) ? ' sel' : ''}" onclick="toggleMember('${p.id}', this)">
+          <i class="bi bi-check-circle-fill member-check"></i>
+          <div class="member-avatar">${initials(p.name)}</div>
+          <div class="member-name">${p.name}</div>
+          ${p.occupation?.company ? `<div class="member-company">${p.occupation.company}</div>` : ''}
+        </div>
+      </div>`).join('');
+  }
+  function toggleMember(id, el) {
+    selMembers.has(id) ? selMembers.delete(id) : selMembers.add(id);
+    el.classList.toggle('sel', selMembers.has(id));
+  }
+
+  // ── Step 3: partners ──────────────────────────────────────────────────────
+  function renderPartners() {
+    document.getElementById('w-partners').innerHTML = partners.map((p, i) => `
+      <div class="partner-row d-flex align-items-center gap-2">
+        <i class="bi bi-person-badge text-muted flex-shrink-0"></i>
+        <input type="email" class="form-control form-control-sm" value="${p.email}"
+               placeholder="partner@example.com" oninput="partners[${i}].email = this.value">
+        <select class="form-select form-select-sm" style="width:145px" onchange="partners[${i}].role = this.value">
+          <option value="consultant" ${p.role === 'consultant' ? 'selected' : ''}>Consultant</option>
+          <option value="public"     ${p.role === 'public'     ? 'selected' : ''}>Viewer</option>
+        </select>
+        <button class="btn btn-sm btn-outline-danger" onclick="removePartner(${i})" title="Remove">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>`).join('');
+  }
+  function removePartner(i) { partners.splice(i, 1); renderPartners(); }
+  document.getElementById('btn-add-partner').addEventListener('click', () => {
+    partners.push({ email: '', role: 'consultant' });
+    renderPartners();
+  });
+
+  // ── Step 4: review ────────────────────────────────────────────────────────
+  function renderReview() {
+    document.getElementById('rv-name').textContent     = nameEl.value;
+    document.getElementById('rv-slug').textContent     = '/plan/' + slugEl.value;
+    document.getElementById('rv-currency').textContent = document.getElementById('w-currency').value;
+    const desc = document.getElementById('w-desc').value.trim();
+    document.getElementById('rv-desc').textContent = desc || '—';
+
+    // members
+    const memberPeople = [...selMembers].map(id => PEOPLE.find(p => p.id === id)).filter(Boolean);
+    const membersEl = document.getElementById('rv-members');
+    membersEl.innerHTML = memberPeople.length
+      ? memberPeople.map(p => `
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <div class="mini-avatar">${initials(p.name)}</div>
+            <span class="small fw-medium">${p.name}</span>
+            ${p.occupation?.company ? `<span class="small text-muted">· ${p.occupation.company}</span>` : ''}
+          </div>`).join('')
+      : `<span class="text-muted small">No members selected — you can add them later.</span>`;
+
+    // partners
+    const validPartners = partners.filter(p => p.email.trim());
+    const partnersBlock = document.getElementById('rv-partners-block');
+    if (validPartners.length) {
+      partnersBlock.classList.remove('d-none');
+      document.getElementById('rv-partners').innerHTML = validPartners.map(p => `
+        <div class="d-flex align-items-center gap-2 mb-1 small">
+          <i class="bi bi-envelope text-muted"></i>
+          <span>${p.email}</span>
+          <span class="badge ${p.role === 'consultant' ? 'bg-info text-dark' : 'bg-secondary'} ms-1">${p.role}</span>
+        </div>`).join('');
+    } else {
+      partnersBlock.classList.add('d-none');
+    }
+  }
+
+  // ── Step navigation ───────────────────────────────────────────────────────
+  function goTo(n) {
+    // Update previous step indicator
+    const prev = document.getElementById(`wsi-${wizStep}`);
+    prev.classList.remove('active');
+    if (n > wizStep) prev.classList.add('done'); else prev.classList.remove('done');
+
+    // Hide current pane
+    document.getElementById(`ws-${wizStep}`).classList.add('d-none');
+    wizStep = n;
+
+    // Show new pane + update indicator
+    document.getElementById(`ws-${n}`).classList.remove('d-none');
+    document.getElementById(`wsi-${n}`).classList.add('active');
+    document.getElementById(`wsi-${n}`).classList.remove('done');
+
+    // Buttons
+    document.getElementById('btn-back').style.display = n > 1 ? '' : 'none';
+    document.getElementById('btn-next').classList.toggle('d-none', n === 4);
+    document.getElementById('btn-create').classList.toggle('d-none', n !== 4);
+
+    if (n === 2) renderPeople();
+    if (n === 3) renderPartners();
+    if (n === 4) renderReview();
+  }
+
+  function validateStep1() {
+    let ok = true;
+    nameEl.classList.remove('is-invalid');
+    slugEl.classList.remove('is-invalid');
+    if (!nameEl.value.trim()) { nameEl.classList.add('is-invalid'); ok = false; }
+    const sv = slugEl.value.trim();
+    if (!sv || !/^[a-z0-9][a-z0-9-]*[a-z0-9]?$/.test(sv)) {
+      document.getElementById('slug-err').textContent = 'Invalid format (lowercase letters, numbers, hyphens).';
+      slugEl.classList.add('is-invalid'); ok = false;
+    } else if (existingSlugs.has(sv)) {
+      document.getElementById('slug-err').textContent = `"${sv}" is already taken.`;
+      slugEl.classList.add('is-invalid'); ok = false;
+    }
+    return ok;
+  }
+
+  document.getElementById('btn-next').addEventListener('click', () => {
+    if (wizStep === 1 && !validateStep1()) return;
+    if (wizStep < 4) goTo(wizStep + 1);
+  });
+  document.getElementById('btn-back').addEventListener('click', () => {
+    if (wizStep > 1) goTo(wizStep - 1);
+  });
+
+  // ── Create ────────────────────────────────────────────────────────────────
+  document.getElementById('btn-create').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-create');
+    const err = document.getElementById('w-error');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Creating…';
+    err.classList.add('d-none');
+    try {
+      const r = await fetch('/api/plans', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          id:          slugEl.value.trim(),
+          name:        nameEl.value.trim(),
+          description: document.getElementById('w-desc').value.trim(),
+          currency:    document.getElementById('w-currency').value,
+          members:     [...selMembers],
+          access:      partners.filter(p => p.email.trim()),
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Unknown error');
+      window.location.href = data.url;
+    } catch (e) {
+      err.textContent = e.message;
+      err.classList.remove('d-none');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Create Plan';
+    }
+  });
+
+  // ── Reset on modal close ──────────────────────────────────────────────────
+  document.getElementById('createPlanModal').addEventListener('hidden.bs.modal', () => {
+    wizStep = 1; selMembers.clear(); partners = [];
+    nameEl.value = ''; slugEl.value = ''; delete slugEl.dataset.manual;
+    document.getElementById('w-desc').value = '';
+    document.getElementById('w-currency').value = 'EUR';
+    document.getElementById('w-error').classList.add('d-none');
+    document.getElementById('w-people-grid').innerHTML = '';
+    document.getElementById('w-partners').innerHTML = '';
+    nameEl.classList.remove('is-invalid'); slugEl.classList.remove('is-invalid');
+    for (let i = 1; i <= 4; i++) {
+      const s = document.getElementById(`wsi-${i}`);
+      s.classList.remove('active', 'done');
+      document.getElementById(`ws-${i}`).classList.toggle('d-none', i !== 1);
+    }
+    document.getElementById('wsi-1').classList.add('active');
+    document.getElementById('btn-back').style.display = 'none';
+    document.getElementById('btn-next').classList.remove('d-none');
+    document.getElementById('btn-create').classList.add('d-none');
+  });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
 
 <nav class="navbar navbar-dark bg-dark px-4 d-flex justify-content-between align-items-center">
   <a class="navbar-brand fw-bold" href="/"><i class="bi bi-bar-chart-line me-2"></i>Budget Plan</a>

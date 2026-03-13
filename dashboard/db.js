@@ -16,6 +16,7 @@ const PROJECT_ROOT    = path.resolve(__dirname, '..', '..');
 const DATA_MANAGER    = path.join(PROJECT_ROOT, 'apps', 'DataManager.py');
 const SNAPSHOT_SCRIPT = path.join(PROJECT_ROOT, 'apps', 'SnapshotSituation.py');
 const BUDGET_PLANS_DIR = path.join(PROJECT_ROOT, 'data', 'budget-plans');
+const PEOPLE_DIR       = path.join(PROJECT_ROOT, 'data', 'people');
 
 function getDbPath(slug) {
   return path.join(__dirname, `finance-${slug}.db`);
@@ -446,6 +447,24 @@ async function getPersonByAuth0Email(email) {
   return queryOne(db, 'SELECT id, name FROM people WHERE auth0_email = ?', [email]);
 }
 
+/** List all available people from the data/people directory (not plan-specific) */
+function listPeople() {
+  if (!fs.existsSync(PEOPLE_DIR)) return [];
+  return fs.readdirSync(PEOPLE_DIR)
+    .filter(d => {
+      try {
+        return fs.statSync(path.join(PEOPLE_DIR, d)).isDirectory()
+          && fs.existsSync(path.join(PEOPLE_DIR, d, 'profile.json'));
+      } catch { return false; }
+    })
+    .map(slug => {
+      try {
+        const p = JSON.parse(fs.readFileSync(path.join(PEOPLE_DIR, slug, 'profile.json'), 'utf8'));
+        return { id: slug, name: p.name, occupation: p.occupation || null };
+      } catch { return { id: slug, name: slug }; }
+    });
+}
+
 module.exports = {
   initDb,
   initAllPlans,
@@ -466,4 +485,5 @@ module.exports = {
   getSnapshot,
   getAnnualSnapshot,
   getPersonByAuth0Email,
+  listPeople,
 };
