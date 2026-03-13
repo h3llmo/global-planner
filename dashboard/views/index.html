@@ -1363,7 +1363,9 @@
       `<li><a class="dropdown-item ${p.id === activePlan.id ? 'active' : ''}" href="/plan/${p.id}">
          <i class="bi bi-folder2${p.id === activePlan.id ? '-open' : ''} me-2"></i>${p.name || p.id}
        </a></li>`
-    ).join('');
+    ).join('') +
+    `<li><hr class="dropdown-divider"></li>
+     <li><a class="dropdown-item" href="/"><i class="bi bi-plus-circle me-2"></i>New budget plan…</a></li>`;
 
     // Role selector: always visible in dev; in production only when authenticated
     // Role selector: visible in dev always; in production only when authenticated
