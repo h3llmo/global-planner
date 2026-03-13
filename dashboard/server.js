@@ -18,12 +18,14 @@ let requiresAuth = () => (_req, _res, next) => next(); // no-op factory in dev
 if (IS_PRODUCTION) {
   const secret        = process.env.AUTH0_SESSION_SECRET;
   const clientID      = process.env.AUTH0_CLIENT_ID;
+  const clientSecret  = process.env.AUTH0_CLIENT_SECRET;
   const issuerBaseURL = process.env.AUTH0_ISSUER_BASE_URL;
 
-  if (!secret || !clientID || !issuerBaseURL) {
+  if (!secret || !clientID || !clientSecret || !issuerBaseURL) {
     console.error('[auth] Missing Auth0 env vars:', {
       AUTH0_SESSION_SECRET:  !!secret,
       AUTH0_CLIENT_ID:       !!clientID,
+      AUTH0_CLIENT_SECRET:   !!clientSecret,
       AUTH0_ISSUER_BASE_URL: !!issuerBaseURL,
     });
     console.warn('[auth] Auth0 disabled — running without authentication');
@@ -35,7 +37,7 @@ if (IS_PRODUCTION) {
     app.use(auth({
       authRequired:  false,
       auth0Logout:   true,
-      secret, clientID, issuerBaseURL,
+      secret, clientID, clientSecret, issuerBaseURL,
       baseURL:       BASE_URL,
       authorizationParams: {
         response_type: 'code',
