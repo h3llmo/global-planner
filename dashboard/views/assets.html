@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assets — Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-dark bg-dark mb-0">
+  <div class="container">
+    <div class="d-flex align-items-center gap-2">
+      <a class="navbar-brand fw-bold text-decoration-none" href="/"><i class="bi bi-bar-chart-line me-1"></i></a>
+      <!-- Plan selector dropdown -->
+      <div class="dropdown" id="plan-selector-wrap">
+        <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" id="plan-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-folder2-open me-1"></i><span id="plan-name-label"></span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-dark" id="plan-dropdown-menu" aria-labelledby="plan-dropdown"></ul>
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <div id="role-selector" style="display:none" class="d-flex align-items-center gap-2">
+        <span class="navbar-text text-light small opacity-75">Role:</span>
+        <select class="form-select form-select-sm bg-dark text-light border-secondary" id="role-select" onchange="setRole(this.value)" style="width:auto"></select>
+      </div>
+      <span class="badge" id="role-badge"></span>
+      <!-- Auth: login/logout -->
+      <div id="auth-widget" class="d-flex align-items-center gap-2"></div>
+    </div>
+  </div>
+</nav>
+
+<!-- Tab navigation -->
+<div class="bg-dark border-bottom border-secondary">
+  <div class="container">
+    <ul class="nav nav-underline py-1">
+      <li class="nav-item">
+        <a class="nav-link text-light" id="tab-plan" href="#">
+          <i class="bi bi-graph-up me-1"></i>Plan
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-light" id="tab-assets" href="#">
+          <i class="bi bi-archive me-1"></i>Assets
+        </a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="container pb-5 pt-4">
+
+  <!-- People section -->
+  <section class="mb-5">
+    <h2 class="section-title d-flex align-items-center justify-content-between">
+      <span>People</span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="openPersonModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Person</button>
+    </h2>
+    <div id="people-list" class="row g-3"></div>
+  </section>
+
+  <!-- Addresses section -->
+  <section class="mb-5">
+    <h2 class="section-title d-flex align-items-center justify-content-between">
+      <span>Addresses</span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="openAddressModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Address</button>
+    </h2>
+    <div id="addresses-list" class="row g-3"></div>
+  </section>
+
+  <!-- Properties section -->
+  <section class="mb-5">
+    <h2 class="section-title d-flex align-items-center justify-content-between">
+      <span>Properties</span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="openPropertyModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Property</button>
+    </h2>
+    <div id="properties-list" class="row g-3"></div>
+  </section>
+
+  <!-- Bank Accounts section -->
+  <section class="mb-5">
+    <h2 class="section-title d-flex align-items-center justify-content-between">
+      <span>Bank Accounts</span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="openBankModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Account</button>
+    </h2>
+    <div id="bank-list" class="row g-3"></div>
+  </section>
+
+  <!-- Contracts section (ALL: income + expense) -->
+  <section class="mb-5">
+    <h2 class="section-title d-flex align-items-center justify-content-between">
+      <span>Contracts</span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="openContractModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Contract</button>
+    </h2>
+    <div id="contracts-list" class="row g-3"></div>
+  </section>
+
+  <!-- Periodic Expenses section -->
+  <section class="mb-5">
+    <h2 class="section-title d-flex align-items-center justify-content-between">
+      <span>Periodic Expenses</span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="openPeriodicModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Expense</button>
+    </h2>
+    <div id="periodic-list" class="row g-3"></div>
+  </section>
+
+  <!-- Mortgages section -->
+  <section class="mb-5">
+    <h2 class="section-title d-flex align-items-center justify-content-between">
+      <span>Mortgages</span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="openMortgageModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Mortgage</button>
+    </h2>
+    <div id="mortgages-list" class="row g-3"></div>
+  </section>
+
+  <!-- Incomes section -->
+  <section class="mb-5">
+    <h2 class="section-title d-flex align-items-center justify-content-between">
+      <span>Incomes</span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="openIncomeModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Income</button>
+    </h2>
+    <div id="incomes-list" class="row g-3"></div>
+  </section>
+
+  <!-- Timeline section -->
+  <section class="mb-5">
+    <h2 class="section-title d-flex align-items-center justify-content-between">
+      <span>Timeline</span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="openMilestoneModal(null)"><i class="bi bi-plus-lg me-1"></i>Add Milestone</button>
+    </h2>
+    <div id="milestones-list" class="row g-3"></div>
+  </section>
+
+</div>
+
+<!-- Bootstrap bundle (must come before modals are used) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// ── Server-injected data ──────────────────────────────────────────────────────
+const people              = __PEOPLE_JSON__;
+const addresses           = __ADDRESSES_JSON__;
+const addressMap          = __ADDRESS_MAP_JSON__;
+const incomeMap           = __INCOME_MAP_JSON__;
+const contracts           = __CONTRACTS_JSON__;
+const employmentContracts = __EMPLOYMENT_JSON__;
+const allContracts        = [...contracts, ...employmentContracts];
+const periodicExpenses    = __PERIODIC_EXPENSES_JSON__;
+const mortgages           = __MORTGAGES_JSON__;
+const realEstate          = __REAL_ESTATE_JSON__;
+const bankAccounts        = __BANK_ACCOUNTS_JSON__;
+const incomes             = __INCOMES_JSON__;
+const project             = __PROJECT_JSON__;
+const activeRole          = __ROLE_JSON__;
+const permissionsConfig   = __PERMISSIONS_CONFIG_JSON__;
+const currentUser         = __USER_JSON__;
+const isProduction        = __IS_PRODUCTION_JSON__;
+const activePlan          = __PLAN_JSON__;
+const allPlans            = __ALL_PLANS_JSON__;
+const PLAN_BASE           = `/plan/${activePlan.id}`;
+
+// ── Tab navigation ────────────────────────────────────────────────────────────
+document.getElementById('tab-plan').href   = PLAN_BASE;
+document.getElementById('tab-assets').href = PLAN_BASE + '/assets';
+document.getElementById('tab-assets').classList.add('active', 'fw-semibold', 'text-white');
+
+// ── Navbar ────────────────────────────────────────────────────────────────────
+document.getElementById('plan-name-label').textContent = activePlan.name || activePlan.id;
+const planMenu = document.getElementById('plan-dropdown-menu');
+planMenu.innerHTML = allPlans.map(p =>
+  `<li><a class="dropdown-item ${p.id === activePlan.id ? 'active' : ''}" href="/plan/${p.id}/assets">
+     <i class="bi bi-folder2${p.id === activePlan.id ? '-open' : ''} me-2"></i>${p.name || p.id}
+   </a></li>`
+).join('') +
+`<li><hr class="dropdown-divider"></li>
+ <li><a class="dropdown-item" href="/"><i class="bi bi-plus-circle me-2"></i>New budget plan\u2026</a></li>`;
+
+async function setRole(role) {
+  await fetch(`${PLAN_BASE}/role`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role })
+  });
+  window.location.reload();
+}
+
+// Role selector
+if (!isProduction || currentUser) {
+  const roleSelector = document.getElementById('role-selector');
+  roleSelector.style.display = '';
+  const select = document.getElementById('role-select');
+  select.innerHTML = permissionsConfig.roles.map(r =>
+    `<option value="${r.id}" ${r.id === activeRole ? 'selected' : ''}>${r.id.charAt(0).toUpperCase() + r.id.slice(1)}</option>`
+  ).join('');
+}
+
+// Auth widget
+const authWidget = document.getElementById('auth-widget');
+if (isProduction) {
+  if (currentUser) {
+    authWidget.innerHTML = `
+      ${currentUser.picture ? `<img src="${currentUser.picture}" alt="" width="28" height="28" class="rounded-circle" title="${currentUser.name}">` : ''}
+      <span class="navbar-text text-light small d-none d-md-inline">${currentUser.name}</span>
+      <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>`;
+  } else {
+    authWidget.innerHTML = `<a href="/login" class="btn btn-outline-light btn-sm">Login</a>`;
+  }
+}
+
+// Role badge
+const roleBadgeColors = { admin: 'danger', owner: 'primary', consultant: 'warning', public: 'secondary' };
+const roleBadge = document.getElementById('role-badge');
+roleBadge.className = `badge bg-${roleBadgeColors[activeRole] || 'secondary'}`;
+roleBadge.textContent = activeRole.charAt(0).toUpperCase() + activeRole.slice(1);
+
+// ── Data registry (avoids quoting issues in onclick attrs) ────────────────────
+const _cd = {};
+function _reg(type, id, data) { _cd[type + id] = data; return id; }
+function _openById(type, id) {
+  const d = _cd[type + id];
+  if (type === 'person')    openPersonModal(d);
+  if (type === 'address')   openAddressModal(d);
+  if (type === 'property')  openPropertyModal(d);
+  if (type === 'bank')      openBankModal(d);
+  if (type === 'contract')  openContractModal(d);
+  if (type === 'periodic')  openPeriodicModal(d);
+  if (type === 'mortgage')  openMortgageModal(d);
+  if (type === 'income')    openIncomeModal(d);
+  if (type === 'milestone') openMilestoneModal(d);
+}
+
+function fmt(n) {
+  return n != null ? Number(n).toLocaleString('fr-BE', { style: 'currency', currency: 'EUR' }) : '\u2014';
+}
+
+// ── Render functions ──────────────────────────────────────────────────────────
+
+function renderPeople() {
+  const el = document.getElementById('people-list');
+  if (!people.length) { el.innerHTML = '<p class="text-muted">No people yet.</p>'; return; }
+  el.innerHTML = people.map(p => {
+    const id = _reg('person', p.id, {
+      id: p.id, name: p.name, role: p.role || '', birth_date: p.birth_date || '',
+      gender: p.gender || '', address_id: p.address_id || '',
+      phone: p.contact?.phone || '', email: p.contact?.email || '',
+      auth0_email: p.auth0_email || '',
+      national_number_be: p.national_number_be || '', cns_lu: p.cns_lu || '',
+      id_card_number: p.id_card?.number || '', id_card_expiry: p.id_card?.expiry || '',
+      occupation_location: p.occupation?.location || '',
+      occupation_company: p.occupation?.company || '',
+      occupation_position: p.occupation?.position || '',
+    });
+    const addr = p.address_id ? addressMap[p.address_id] : null;
+    const addrStr = addr ? `${addr.street_name}, ${addr.city}` : '';
+    return `<div class="col-12 col-sm-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <h6 class="fw-semibold mb-0">${p.name}</h6>
+              ${p.role === 'child' ? '<span class="badge bg-info text-dark small">child</span>' : ''}
+            </div>
+            <div class="d-flex gap-1">
+              <button class="btn btn-sm btn-outline-secondary" onclick="_openById('person',${id})"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="crudDelete('people',${id},'${p.name.replace(/'/g,"\\'")}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+          ${p.birth_date ? `<p class="small text-muted mb-1"><i class="bi bi-calendar3 me-1"></i>${p.birth_date}</p>` : ''}
+          ${addrStr ? `<p class="small text-muted mb-1"><i class="bi bi-geo-alt me-1"></i>${addrStr}</p>` : ''}
+          ${p.contact?.email ? `<p class="small text-muted mb-0"><i class="bi bi-envelope me-1"></i>${p.contact.email}</p>` : ''}
+          ${p.occupation?.company ? `<p class="small text-muted mb-0"><i class="bi bi-briefcase me-1"></i>${p.occupation.company}</p>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderAddresses() {
+  const el = document.getElementById('addresses-list');
+  if (!addresses.length) { el.innerHTML = '<p class="text-muted">No addresses yet.</p>'; return; }
+  el.innerHTML = addresses.map(a => {
+    const id = _reg('address', a.id, a);
+    return `<div class="col-12 col-sm-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h6 class="fw-semibold mb-1">${a.street_number ? a.street_number + ' ' : ''}${a.street_name}</h6>
+              <p class="small text-muted mb-0">${a.postal_code} ${a.city}, ${a.country}</p>
+            </div>
+            <div class="d-flex gap-1 ms-2">
+              <button class="btn btn-sm btn-outline-secondary" onclick="_openById('address',${id})"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="crudDelete('addresses',${id},'${a.street_name.replace(/'/g,"\\'")}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderProperties() {
+  const el = document.getElementById('properties-list');
+  if (!realEstate.length) { el.innerHTML = '<p class="text-muted">No properties yet.</p>'; return; }
+  el.innerHTML = realEstate.map(p => {
+    const id = _reg('property', p.id, p);
+    const addr = addressMap[p.address_id] || {};
+    const owners = (p.owner_ids || []).map(oid => (people.find(x => x.id === oid) || {}).name || oid).join(', ');
+    return `<div class="col-12 col-sm-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <span class="badge bg-secondary text-uppercase small me-1">${p.type}</span>
+              <span class="badge bg-light text-dark border small">${p.status.replace('_', ' ')}</span>
+            </div>
+            <div class="d-flex gap-1">
+              <button class="btn btn-sm btn-outline-secondary" onclick="_openById('property',${id})"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="crudDelete('properties',${id},'${(addr.street_name||'property').replace(/'/g,"\\'")}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+          <p class="small mb-1"><i class="bi bi-geo-alt me-1 text-muted"></i>${addr.street_number ? addr.street_number + ' ' : ''}${addr.street_name || '\u2014'}, ${addr.city || ''}</p>
+          ${owners ? `<p class="small text-muted mb-0"><i class="bi bi-people me-1"></i>${owners}</p>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderBankAccounts() {
+  const el = document.getElementById('bank-list');
+  if (!bankAccounts.length) { el.innerHTML = '<p class="text-muted">No bank accounts yet.</p>'; return; }
+  el.innerHTML = bankAccounts.map(a => {
+    const id = _reg('bank', a.id, a);
+    const owner = (people.find(p => p.id === a.person_id) || {}).name || a.person_id;
+    return `<div class="col-12 col-sm-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <h6 class="fw-semibold mb-0">${a.bank}</h6>
+              <span class="badge bg-light text-dark border small">${a.type}</span>
+            </div>
+            <div class="d-flex gap-1">
+              <button class="btn btn-sm btn-outline-secondary" onclick="_openById('bank',${id})"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="crudDelete('bank-accounts',${id},'${a.iban}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+          <p class="small text-muted mb-1 text-truncate">${a.iban}</p>
+          <p class="small text-muted mb-0"><i class="bi bi-person me-1"></i>${owner}</p>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderContracts() {
+  const el = document.getElementById('contracts-list');
+  if (!allContracts.length) { el.innerHTML = '<p class="text-muted">No contracts yet.</p>'; return; }
+  el.innerHTML = allContracts.map(c => {
+    const enriched = {
+      ...c,
+      _period_monthly_cost: (c.periods || [])[0]?.monthly_cost,
+      _period_gross_monthly: (c.periods || [])[0]?.gross_monthly,
+      _period_start_date: (c.periods || [])[0]?.start_date,
+      _period_end_date: (c.periods || [])[0]?.end_date,
+      _period_rate: (c.periods || [])[0]?.rate,
+      _period_rate_type: (c.periods || [])[0]?.rate_type,
+    };
+    const id = _reg('contract', c.id, enriched);
+    const owner = (people.find(p => p.id === c.owner_id) || {}).name || c.owner_id;
+    const now = new Date();
+    const activePeriod = (c.periods || []).find(p => {
+      const s = p.start_date ? new Date(p.start_date) : null;
+      const e = p.end_date   ? new Date(p.end_date)   : null;
+      return (!s || s <= now) && (!e || e >= now);
+    });
+    const dirBadge = c.direction === 'income'
+      ? '<span class="badge bg-success small">income</span>'
+      : '<span class="badge bg-danger small">expense</span>';
+    return `<div class="col-12 col-sm-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <h6 class="fw-semibold mb-0">${c.title}</h6>
+              <div class="d-flex gap-1 mt-1">${dirBadge}<span class="badge bg-light text-dark border small">${c.category}</span></div>
+            </div>
+            <div class="d-flex gap-1">
+              <button class="btn btn-sm btn-outline-secondary" onclick="_openById('contract',${id})"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="crudDelete('contracts',${id},'${c.title.replace(/'/g,"\\'")}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+          <p class="small text-muted mb-1"><i class="bi bi-person me-1"></i>${owner}</p>
+          ${activePeriod?.monthly_cost != null ? `<p class="small fw-semibold mb-0">${fmt(activePeriod.monthly_cost)}/mo</p>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderPeriodic() {
+  const el = document.getElementById('periodic-list');
+  if (!periodicExpenses.length) { el.innerHTML = '<p class="text-muted">No periodic expenses yet.</p>'; return; }
+  el.innerHTML = periodicExpenses.map(e => {
+    const id = _reg('periodic', e.id, e);
+    const owner = (people.find(p => p.id === e.owner_id) || {}).name || e.owner_id;
+    const total = (e.payments || []).reduce((s, p) => s + p.amount, 0);
+    return `<div class="col-12 col-sm-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <h6 class="fw-semibold mb-0">${e.title}</h6>
+              <span class="badge bg-light text-dark border small">${e.category}</span>
+            </div>
+            <div class="d-flex gap-1">
+              <button class="btn btn-sm btn-outline-secondary" onclick="_openById('periodic',${id})"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="crudDelete('periodic-expenses',${id},'${e.title.replace(/'/g,"\\'")}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+          <p class="small text-muted mb-1"><i class="bi bi-person me-1"></i>${owner}</p>
+          ${total ? `<p class="small fw-semibold mb-0">${fmt(total)}/yr</p>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderMortgages() {
+  const el = document.getElementById('mortgages-list');
+  if (!mortgages.length) { el.innerHTML = '<p class="text-muted">No mortgages yet.</p>'; return; }
+  el.innerHTML = mortgages.map(m => {
+    const id = _reg('mortgage', m.id, { ...m, contract_ref: m.contract });
+    const owner = (people.find(p => p.id === m.owner_id) || {}).name || m.owner_id;
+    const prop  = realEstate.find(p => p.id === m.property_id);
+    const propAddr = prop ? (addressMap[prop.address_id] || {}).street_name || '' : '';
+    return `<div class="col-12 col-sm-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <h6 class="fw-semibold mb-0">${m.contract}</h6>
+              ${propAddr ? `<p class="small text-muted mb-0">${propAddr}</p>` : ''}
+            </div>
+            <div class="d-flex gap-1">
+              <button class="btn btn-sm btn-outline-secondary" onclick="_openById('mortgage',${id})"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="crudDelete('mortgages',${id},'${m.contract.replace(/'/g,"\\'")}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+          <p class="small text-muted mb-1"><i class="bi bi-person me-1"></i>${owner}</p>
+          ${m.nominal != null ? `<p class="small mb-1">Nominal: ${fmt(m.nominal)}</p>` : ''}
+          ${m.monthly_payment != null ? `<p class="small fw-semibold mb-0">${fmt(m.monthly_payment)}/mo</p>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderIncomes() {
+  const el = document.getElementById('incomes-list');
+  if (!incomes.length) { el.innerHTML = '<p class="text-muted">No income records yet.</p>'; return; }
+  el.innerHTML = incomes.map(inc => {
+    const ob = inc.other_benefits || {};
+    const data = {
+      id: inc.id, person_id: inc.person_id, year: inc.year,
+      avg_gross_monthly_salary: inc.avg_gross_monthly_salary || '',
+      avg_net_monthly_salary: inc.avg_net_monthly_salary || '',
+      health_insurance: ob.health_insurance || false,
+      transportation_allowance: ob.transportation_allowance || '',
+      meal_vouchers: ob.meal_vouchers || '',
+      performance_bonus_gross: ob.performance_bonus?.amount || '',
+      performance_bonus_net: ob.performance_bonus?.net_amount || '',
+      end_of_year_bonus_gross: ob.end_of_year_bonus?.amount || '',
+      end_of_year_bonus_net: ob.end_of_year_bonus?.net_amount || '',
+      child_allowance: ob.child_allowance || '',
+    };
+    const id = _reg('income', inc.id, data);
+    const person = (people.find(p => p.id === inc.person_id) || {}).name || inc.person_id;
+    return `<div class="col-12 col-sm-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <h6 class="fw-semibold mb-0">${person} \u2014 ${inc.year}</h6>
+            </div>
+            <div class="d-flex gap-1">
+              <button class="btn btn-sm btn-outline-secondary" onclick="_openById('income',${id})"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="crudDelete('incomes',${id},'${person} ${inc.year}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+          ${inc.avg_net_monthly_salary != null ? `<p class="small mb-1">Net: ${fmt(inc.avg_net_monthly_salary)}/mo</p>` : ''}
+          ${inc.avg_gross_monthly_salary != null ? `<p class="small text-muted mb-0">Gross: ${fmt(inc.avg_gross_monthly_salary)}/mo</p>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderMilestones() {
+  const el = document.getElementById('milestones-list');
+  const milestones = (project?.milestones || []);
+  if (!milestones.length) { el.innerHTML = '<p class="text-muted">No milestones yet.</p>'; return; }
+  const statusColor = { planned: 'secondary', in_progress: 'primary', done: 'success', cancelled: 'dark', Completed: 'success', Planning: 'warning', 'In Progress': 'primary', Blocked: 'danger' };
+  el.innerHTML = milestones.map(m => {
+    const data = {
+      id: m.id, title: m.title, description: m.description || '',
+      start_date: m.startDate || m.start_date || '',
+      end_date: m.endDate || m.end_date || '',
+      status: m.status || 'planned', priority: m.priority || 'medium',
+      budget: m.budget || '', notes: m.notes || '',
+    };
+    const id = _reg('milestone', m.id, data);
+    return `<div class="col-12 col-sm-6 col-lg-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+              <h6 class="fw-semibold mb-1">${m.title}</h6>
+              <span class="badge bg-${statusColor[m.status] || 'secondary'}">${m.status || '\u2014'}</span>
+              <span class="badge bg-light text-dark border ms-1">${m.priority || '\u2014'}</span>
+            </div>
+            <div class="d-flex gap-1">
+              <button class="btn btn-sm btn-outline-secondary" onclick="_openById('milestone',${id})"><i class="bi bi-pencil"></i></button>
+              <button class="btn btn-sm btn-outline-danger" onclick="crudDelete('milestones',${id},'${m.title.replace(/'/g,"\\'")}')"><i class="bi bi-trash"></i></button>
+            </div>
+          </div>
+          ${(m.startDate || m.start_date) ? `<p class="small text-muted mb-0"><i class="bi bi-calendar3 me-1"></i>${m.startDate || m.start_date}${(m.endDate || m.end_date) ? ' \u2192 ' + (m.endDate || m.end_date) : ''}</p>` : ''}
+          ${m.budget ? `<p class="small fw-semibold mb-0">${fmt(m.budget)}</p>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Render all sections on load
+renderPeople();
+renderAddresses();
+renderProperties();
+renderBankAccounts();
+renderContracts();
+renderPeriodic();
+renderMortgages();
+renderIncomes();
+renderMilestones();
+
+// ── CRUD helpers ──────────────────────────────────────────────────────────────
+
+async function crudFetch(method, url, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `${r.status} ${r.statusText}`);
+  return data;
+}
+
+async function crudDelete(resource, id, label) {
+  if (!confirm(`Delete${label ? ' "' + label + '"' : ''}?\nThis cannot be undone.`)) return;
+  try {
+    await crudFetch('DELETE', `${PLAN_BASE}/api/${resource}/${id}`);
+    window.location.reload();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+function openCrudModal(modalId, data, submitFn) {
+  const modalEl = document.getElementById(modalId);
+  if (!modalEl) return;
+  const modal = new bootstrap.Modal(modalEl);
+  if (data) {
+    Object.entries(data).forEach(([key, val]) => {
+      const el = modalEl.querySelector(`[name="${key}"]`);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = !!val;
+      else el.value = val ?? '';
+    });
+  } else {
+    modalEl.querySelectorAll('input,select,textarea').forEach(el => {
+      if (el.type === 'checkbox') el.checked = false;
+      else el.value = '';
+    });
+  }
+  const saveBtn = modalEl.querySelector('.crud-save-btn');
+  if (saveBtn) {
+    const newBtn = saveBtn.cloneNode(true);
+    saveBtn.parentNode.replaceChild(newBtn, saveBtn);
+    newBtn.addEventListener('click', async () => {
+      newBtn.disabled = true;
+      newBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving\u2026';
+      try {
+        const formData = {};
+        modalEl.querySelectorAll('[name]').forEach(el => {
+          formData[el.name] = el.type === 'checkbox' ? el.checked : (el.value.trim() || null);
+        });
+        await submitFn(formData);
+        modal.hide();
+        window.location.reload();
+      } catch (e) {
+        alert('Error: ' + e.message);
+        newBtn.disabled = false;
+        newBtn.innerHTML = '<i class="bi bi-check2 me-1"></i>Save';
+      }
+    });
+  }
+  modal.show();
+}
+
+function populateAddressSelect(selId, selectedId) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— none —</option>' +
+    addresses.map(a =>
+      `<option value="${a.id}" ${a.id == selectedId ? 'selected' : ''}>${a.street_number ? a.street_number + ' ' : ''}${a.street_name}, ${a.city}</option>`
+    ).join('');
+}
+function populatePeopleSelect(selId, selectedId) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— none —</option>' +
+    people.map(p =>
+      `<option value="${p.id}" ${p.id == selectedId ? 'selected' : ''}>${p.name}</option>`
+    ).join('');
+}
+function populatePropertySelect(selId, selectedId) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— none —</option>' +
+    realEstate.map(p => {
+      const addr = addressMap[p.address_id] || {};
+      return `<option value="${p.id}" ${p.id == selectedId ? 'selected' : ''}>${addr.street_name || 'Property'} (${p.type})</option>`;
+    }).join('');
+}
+function populateOwnerCheckboxes(containerId, selectedIds) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = people.map(p =>
+    `<div class="form-check form-check-inline">
+      <input class="form-check-input prop-owner-cb" type="checkbox" id="po_${p.id}" value="${p.id}" ${(selectedIds||[]).includes(p.id) ? 'checked' : ''}>
+      <label class="form-check-label small" for="po_${p.id}">${p.name}</label>
+    </div>`
+  ).join('');
+}
+
+function openAddressModal(idOrData) {
+  const data = idOrData && typeof idOrData === 'object' ? idOrData : null;
+  openCrudModal('addrModal', data, async (fd) => {
+    const id = fd.id;
+    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/addresses/${id}`, fd);
+    else await crudFetch('POST', `${PLAN_BASE}/api/addresses`, fd);
+  });
+}
+
+function openPersonModal(idOrData) {
+  const data = idOrData && typeof idOrData === 'object' ? idOrData : null;
+  populateAddressSelect('personAddrSel', data?.address_id);
+  openCrudModal('personModal', data, async (fd) => {
+    const id = fd.id;
+    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/people/${id}`, fd);
+    else await crudFetch('POST', `${PLAN_BASE}/api/people`, fd);
+  });
+}
+
+function openPropertyModal(idOrData) {
+  const data = idOrData && typeof idOrData === 'object' ? idOrData : null;
+  populateAddressSelect('propAddrSel', data?.address_id);
+  populateOwnerCheckboxes('propOwnerSel', data?.owner_ids);
+  openCrudModal('propertyModal', data, async (fd) => {
+    fd.owner_ids = [...document.querySelectorAll('.prop-owner-cb:checked')].map(c => Number(c.value));
+    const id = fd.id;
+    delete fd.id;
+    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/properties/${id}`, { ...fd });
+    else await crudFetch('POST', `${PLAN_BASE}/api/properties`, fd);
+  });
+}
+
+function openBankModal(idOrData) {
+  const data = idOrData && typeof idOrData === 'object' ? idOrData : null;
+  populatePeopleSelect('bankPersonSel', data?.person_id);
+  openCrudModal('bankModal', data, async (fd) => {
+    const id = fd.id;
+    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/bank-accounts/${id}`, fd);
+    else await crudFetch('POST', `${PLAN_BASE}/api/bank-accounts`, fd);
+  });
+}
+
+function openContractModal(idOrData, defaultDirection) {
+  const data = idOrData && typeof idOrData === 'object' ? idOrData : null;
+  populatePeopleSelect('contractPersonSel', data?.owner_id);
+  populatePropertySelect('contractPropSel', data?.property_id);
+  const enriched = data ? {
+    ...data,
+    direction: data.direction || defaultDirection || 'expense',
+    consultant_relevant: data.consultant_relevant !== false,
+  } : { direction: defaultDirection || 'expense', consultant_relevant: true };
+  openCrudModal('contractModal', enriched, async (fd) => {
+    const periods = [{
+      monthly_cost: parseFloat(fd._period_monthly_cost) || 0,
+      gross_monthly: parseFloat(fd._period_gross_monthly) || null,
+      start_date: fd._period_start_date || null, end_date: fd._period_end_date || null,
+      rate: parseFloat(fd._period_rate) || null, rate_type: fd._period_rate_type || null,
+    }];
+    const { _period_monthly_cost, _period_gross_monthly, _period_start_date, _period_end_date, _period_rate, _period_rate_type, id, ...contractData } = fd;
+    contractData.periods = periods;
+    contractData.consultant_relevant = document.querySelector('#contractModal [name="consultant_relevant"]').checked;
+    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/contracts/${id}`, contractData);
+    else await crudFetch('POST', `${PLAN_BASE}/api/contracts`, contractData);
+  });
+}
+
+window._periodicPayments = [];
+function addPeriodicPaymentRow(label, amount) {
+  window._periodicPayments.push({ label: label || '', amount: amount || '' });
+  renderPeriodicPaymentRows();
+}
+function removePeriodicPaymentRow(i) {
+  window._periodicPayments.splice(i, 1);
+  renderPeriodicPaymentRows();
+}
+function renderPeriodicPaymentRows() {
+  const container = document.getElementById('periodicPayments');
+  if (!container) return;
+  container.innerHTML = window._periodicPayments.map((p, i) =>
+    `<div class="d-flex gap-1 mb-1 align-items-center">
+       <input class="form-control form-control-sm" placeholder="Label" value="${p.label||''}" onchange="window._periodicPayments[${i}].label=this.value">
+       <input class="form-control form-control-sm" placeholder="Amount" type="number" step="0.01" value="${p.amount||''}" onchange="window._periodicPayments[${i}].amount=parseFloat(this.value)||0" style="max-width:100px">
+       <button type="button" class="btn btn-sm btn-outline-danger" onclick="removePeriodicPaymentRow(${i})"><i class="bi bi-trash"></i></button>
+     </div>`
+  ).join('');
+}
+function openPeriodicModal(idOrData) {
+  const data = idOrData && typeof idOrData === 'object' ? idOrData : null;
+  window._periodicPayments = (data?.payments || []).map(p => ({ ...p }));
+  renderPeriodicPaymentRows();
+  populatePeopleSelect('periodicPersonSel', data?.owner_id);
+  populatePropertySelect('periodicPropSel', data?.property_id);
+  openCrudModal('periodicModal', data, async (fd) => {
+    const id = fd.id;
+    const body = { ...fd, payments: window._periodicPayments.filter(p => p.label) };
+    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/periodic-expenses/${id}`, body);
+    else await crudFetch('POST', `${PLAN_BASE}/api/periodic-expenses`, body);
+  });
+}
+
+function openMortgageModal(idOrData, defaultPropertyId) {
+  const data = idOrData && typeof idOrData === 'object' ? idOrData : null;
+  populatePeopleSelect('mortgagePersonSel', data?.owner_id);
+  populatePropertySelect('mortgagePropSel', data?.property_id || defaultPropertyId);
+  openCrudModal('mortgageModal', data || (defaultPropertyId ? { property_id: defaultPropertyId } : null), async (fd) => {
+    const id = fd.id;
+    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/mortgages/${id}`, fd);
+    else await crudFetch('POST', `${PLAN_BASE}/api/mortgages`, fd);
+  });
+}
+
+function openIncomeModal(idOrData) {
+  const data = idOrData && typeof idOrData === 'object' ? idOrData : null;
+  populatePeopleSelect('incomePersonSel', data?.person_id);
+  openCrudModal('incomeModal', data, async (fd) => {
+    const id = fd.id;
+    fd.health_insurance = document.querySelector('#incomeModal [name="health_insurance"]').checked;
+    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/incomes/${id}`, fd);
+    else await crudFetch('POST', `${PLAN_BASE}/api/incomes`, fd);
+  });
+}
+
+function openMilestoneModal(idOrData) {
+  const data = idOrData && typeof idOrData === 'object' ? idOrData : null;
+  openCrudModal('milestoneModal', data, async (fd) => {
+    const id = fd.id;
+    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/milestones/${id}`, fd);
+    else await crudFetch('POST', `${PLAN_BASE}/api/milestones`, fd);
+  });
+}
+</script>
+
+<!-- Address Modal -->
+<div class="modal fade" id="addrModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Address</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" name="id">
+      <div class="row g-2">
+        <div class="col-3"><label class="form-label small">N°</label><input class="form-control form-control-sm" name="street_number"></div>
+        <div class="col-9"><label class="form-label small">Street *</label><input class="form-control form-control-sm" name="street_name" required></div>
+        <div class="col-4"><label class="form-label small">Postal code *</label><input class="form-control form-control-sm" name="postal_code" required></div>
+        <div class="col-8"><label class="form-label small">City *</label><input class="form-control form-control-sm" name="city" required></div>
+        <div class="col-4"><label class="form-label small">Country code *</label><input class="form-control form-control-sm" name="country_code" placeholder="LU" required></div>
+        <div class="col-8"><label class="form-label small">Country *</label><input class="form-control form-control-sm" name="country" required></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
+  </div></div>
+</div>
+
+<!-- Person Modal -->
+<div class="modal fade" id="personModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Person</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" name="id">
+      <div class="row g-2">
+        <div class="col-8"><label class="form-label small">Full name *</label><input class="form-control form-control-sm" name="name" required></div>
+        <div class="col-4"><label class="form-label small">Role</label>
+          <select class="form-select form-select-sm" name="role"><option value="">adult</option><option value="child">child</option></select></div>
+        <div class="col-4"><label class="form-label small">Birth date</label><input class="form-control form-control-sm" name="birth_date" type="date"></div>
+        <div class="col-4"><label class="form-label small">Gender</label>
+          <select class="form-select form-select-sm" name="gender"><option value="">—</option><option>male</option><option>female</option></select></div>
+        <div class="col-4"><label class="form-label small">Address</label>
+          <select class="form-select form-select-sm" name="address_id" id="personAddrSel"></select></div>
+        <div class="col-6"><label class="form-label small">Phone</label><input class="form-control form-control-sm" name="phone" type="tel"></div>
+        <div class="col-6"><label class="form-label small">Email</label><input class="form-control form-control-sm" name="email" type="email"></div>
+        <div class="col-6"><label class="form-label small">Auth0 email</label><input class="form-control form-control-sm" name="auth0_email" type="email"></div>
+        <div class="col-6"><label class="form-label small">National number (BE)</label><input class="form-control form-control-sm" name="national_number_be"></div>
+        <div class="col-6"><label class="form-label small">CNS (LU)</label><input class="form-control form-control-sm" name="cns_lu"></div>
+        <div class="col-6"><label class="form-label small">ID card number</label><input class="form-control form-control-sm" name="id_card_number"></div>
+        <div class="col-6"><label class="form-label small">ID card expiry</label><input class="form-control form-control-sm" name="id_card_expiry" type="date"></div>
+        <div class="col-12"><hr class="my-1"><p class="small text-muted mb-1">Occupation</p></div>
+        <div class="col-4"><label class="form-label small">Location</label><input class="form-control form-control-sm" name="occupation_location"></div>
+        <div class="col-4"><label class="form-label small">Company</label><input class="form-control form-control-sm" name="occupation_company"></div>
+        <div class="col-4"><label class="form-label small">Position</label><input class="form-control form-control-sm" name="occupation_position"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
+  </div></div>
+</div>
+
+<!-- Property Modal -->
+<div class="modal fade" id="propertyModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Property</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" name="id">
+      <div class="row g-2">
+        <div class="col-12"><label class="form-label small">Address *</label>
+          <select class="form-select form-select-sm" name="address_id" id="propAddrSel" required></select></div>
+        <div class="col-6"><label class="form-label small">Type *</label>
+          <select class="form-select form-select-sm" name="type" required>
+            <option value="apartment">Apartment</option><option value="house">House</option>
+            <option value="land">Land</option><option value="commercial">Commercial</option><option value="other">Other</option>
+          </select></div>
+        <div class="col-6"><label class="form-label small">Status *</label>
+          <select class="form-select form-select-sm" name="status" required>
+            <option value="primary_residence">Primary residence</option><option value="rental">Rental</option>
+            <option value="secondary">Secondary home</option><option value="building">Under construction</option>
+          </select></div>
+        <div class="col-12"><label class="form-label small">Owners</label>
+          <div id="propOwnerSel"></div></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
+  </div></div>
+</div>
+
+<!-- Bank Account Modal -->
+<div class="modal fade" id="bankModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Bank Account</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" name="id">
+      <div class="row g-2">
+        <div class="col-12"><label class="form-label small">Owner *</label>
+          <select class="form-select form-select-sm" name="person_id" id="bankPersonSel" required></select></div>
+        <div class="col-6"><label class="form-label small">Bank name *</label><input class="form-control form-control-sm" name="bank" required></div>
+        <div class="col-6"><label class="form-label small">Country *</label><input class="form-control form-control-sm" name="country" placeholder="LU" required></div>
+        <div class="col-8"><label class="form-label small">IBAN *</label><input class="form-control form-control-sm" name="iban" required></div>
+        <div class="col-4"><label class="form-label small">BIC</label><input class="form-control form-control-sm" name="bic"></div>
+        <div class="col-6"><label class="form-label small">Type *</label>
+          <select class="form-select form-select-sm" name="type" required>
+            <option value="checking">Checking</option><option value="savings">Savings</option>
+            <option value="joint">Joint</option><option value="other">Other</option>
+          </select></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
+  </div></div>
+</div>
+
+<!-- Contract Modal -->
+<div class="modal fade" id="contractModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Contract</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" name="id">
+      <div class="row g-2">
+        <div class="col-8"><label class="form-label small">Title *</label><input class="form-control form-control-sm" name="title" required></div>
+        <div class="col-4"><label class="form-label small">Direction</label>
+          <select class="form-select form-select-sm" name="direction"><option value="expense">Expense</option><option value="income">Income</option></select></div>
+        <div class="col-6"><label class="form-label small">Category *</label><input class="form-control form-control-sm" name="category" required></div>
+        <div class="col-6"><label class="form-label small">Owner *</label>
+          <select class="form-select form-select-sm" name="owner_id" id="contractPersonSel" required></select></div>
+        <div class="col-6"><label class="form-label small">Property</label>
+          <select class="form-select form-select-sm" name="property_id" id="contractPropSel"></select></div>
+        <div class="col-3"><label class="form-label small">Nominal</label><input class="form-control form-control-sm" name="nominal" type="number" step="0.01"></div>
+        <div class="col-3"><label class="form-label small">TAEG %</label><input class="form-control form-control-sm" name="taeg" type="number" step="0.001"></div>
+        <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="consultant_relevant" id="contractCR" checked><label class="form-check-label small" for="contractCR">Consultant relevant</label></div></div>
+        <div class="col-12"><label class="form-label small">Notes</label><textarea class="form-control form-control-sm" name="notes" rows="2"></textarea></div>
+        <div class="col-12"><hr class="my-1"><p class="small text-muted mb-1">Period (main)</p></div>
+        <div class="col-4"><label class="form-label small">Monthly cost *</label><input class="form-control form-control-sm" name="_period_monthly_cost" type="number" step="0.01" required></div>
+        <div class="col-4"><label class="form-label small">Gross monthly</label><input class="form-control form-control-sm" name="_period_gross_monthly" type="number" step="0.01"></div>
+        <div class="col-4"><label class="form-label small">Rate %</label><input class="form-control form-control-sm" name="_period_rate" type="number" step="0.001"></div>
+        <div class="col-4"><label class="form-label small">Start date</label><input class="form-control form-control-sm" name="_period_start_date" type="date"></div>
+        <div class="col-4"><label class="form-label small">End date</label><input class="form-control form-control-sm" name="_period_end_date" type="date"></div>
+        <div class="col-4"><label class="form-label small">Rate type</label><input class="form-control form-control-sm" name="_period_rate_type" placeholder="fixed/variable"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
+  </div></div>
+</div>
+
+<!-- Periodic Expense Modal -->
+<div class="modal fade" id="periodicModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Periodic Expense</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" name="id">
+      <div class="row g-2">
+        <div class="col-8"><label class="form-label small">Title *</label><input class="form-control form-control-sm" name="title" required></div>
+        <div class="col-4"><label class="form-label small">Owner *</label>
+          <select class="form-select form-select-sm" name="owner_id" id="periodicPersonSel" required></select></div>
+        <div class="col-6"><label class="form-label small">Category *</label><input class="form-control form-control-sm" name="category" required></div>
+        <div class="col-6"><label class="form-label small">Property</label>
+          <select class="form-select form-select-sm" name="property_id" id="periodicPropSel"></select></div>
+        <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="consultant_relevant" id="periodicCR" checked><label class="form-check-label small" for="periodicCR">Consultant relevant</label></div></div>
+        <div class="col-12"><hr class="my-1"><p class="small fw-semibold mb-1">Payments <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="addPeriodicPaymentRow()">+ Add</button></p>
+          <div id="periodicPayments"></div></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
+  </div></div>
+</div>
+
+<!-- Mortgage Modal -->
+<div class="modal fade" id="mortgageModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Mortgage</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" name="id">
+      <div class="row g-2">
+        <div class="col-6"><label class="form-label small">Reference *</label><input class="form-control form-control-sm" name="contract_ref" required></div>
+        <div class="col-6"><label class="form-label small">Owner *</label>
+          <select class="form-select form-select-sm" name="owner_id" id="mortgagePersonSel" required></select></div>
+        <div class="col-12"><label class="form-label small">Property *</label>
+          <select class="form-select form-select-sm" name="property_id" id="mortgagePropSel" required></select></div>
+        <div class="col-4"><label class="form-label small">Nominal</label><input class="form-control form-control-sm" name="nominal" type="number" step="0.01"></div>
+        <div class="col-4"><label class="form-label small">Rate %</label><input class="form-control form-control-sm" name="rate" type="number" step="0.001"></div>
+        <div class="col-4"><label class="form-label small">TAEG %</label><input class="form-control form-control-sm" name="taeg" type="number" step="0.001"></div>
+        <div class="col-4"><label class="form-label small">Months</label><input class="form-control form-control-sm" name="months" type="number"></div>
+        <div class="col-4"><label class="form-label small">Monthly payment</label><input class="form-control form-control-sm" name="monthly_payment" type="number" step="0.01"></div>
+        <div class="col-4"></div>
+        <div class="col-4"><label class="form-label small">First payment</label><input class="form-control form-control-sm" name="first_payment" type="date"></div>
+        <div class="col-4"><label class="form-label small">Last payment</label><input class="form-control form-control-sm" name="last_payment" type="date"></div>
+        <div class="col-4"><label class="form-label small">Effective date</label><input class="form-control form-control-sm" name="effective_date" type="date"></div>
+        <div class="col-4"><label class="form-label small">Total amount</label><input class="form-control form-control-sm" name="total_amount" type="number" step="0.01"></div>
+        <div class="col-4"><label class="form-label small">Total interest</label><input class="form-control form-control-sm" name="total_interest" type="number" step="0.01"></div>
+        <div class="col-4"><label class="form-label small">Capital amortized</label><input class="form-control form-control-sm" name="capital_amortized" type="number" step="0.01"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
+  </div></div>
+</div>
+
+<!-- Income Modal -->
+<div class="modal fade" id="incomeModal" tabindex="-1">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Income Record</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" name="id">
+      <div class="row g-2">
+        <div class="col-6"><label class="form-label small">Person *</label>
+          <select class="form-select form-select-sm" name="person_id" id="incomePersonSel" required></select></div>
+        <div class="col-6"><label class="form-label small">Year *</label><input class="form-control form-control-sm" name="year" type="number" min="2000" max="2100" required></div>
+        <div class="col-6"><label class="form-label small">Avg gross monthly salary</label><input class="form-control form-control-sm" name="avg_gross_monthly_salary" type="number" step="0.01"></div>
+        <div class="col-6"><label class="form-label small">Avg net monthly salary</label><input class="form-control form-control-sm" name="avg_net_monthly_salary" type="number" step="0.01"></div>
+        <div class="col-4"><label class="form-label small">Meal vouchers/mo</label><input class="form-control form-control-sm" name="meal_vouchers" type="number" step="0.01"></div>
+        <div class="col-4"><label class="form-label small">Child allowance/mo</label><input class="form-control form-control-sm" name="child_allowance" type="number" step="0.01"></div>
+        <div class="col-4"><label class="form-label small">Transport allowance/mo</label><input class="form-control form-control-sm" name="transportation_allowance" type="number" step="0.01"></div>
+        <div class="col-4"><label class="form-label small">Perf. bonus (gross)</label><input class="form-control form-control-sm" name="performance_bonus_gross" type="number" step="0.01"></div>
+        <div class="col-4"><label class="form-label small">Perf. bonus (net)</label><input class="form-control form-control-sm" name="performance_bonus_net" type="number" step="0.01"></div>
+        <div class="col-4"><label class="form-label small">EOY bonus (gross)</label><input class="form-control form-control-sm" name="end_of_year_bonus_gross" type="number" step="0.01"></div>
+        <div class="col-4"><label class="form-label small">EOY bonus (net)</label><input class="form-control form-control-sm" name="end_of_year_bonus_net" type="number" step="0.01"></div>
+        <div class="col-4"><label class="form-label small"><input type="checkbox" name="health_insurance" class="form-check-input me-1">Health insurance</label></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
+  </div></div>
+</div>
+
+<!-- Milestone Modal -->
+<div class="modal fade" id="milestoneModal" tabindex="-1">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Timeline Milestone</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <input type="hidden" name="id">
+      <div class="row g-2">
+        <div class="col-12"><label class="form-label small">Title *</label><input class="form-control form-control-sm" name="title" required></div>
+        <div class="col-12"><label class="form-label small">Description</label><textarea class="form-control form-control-sm" name="description" rows="2"></textarea></div>
+        <div class="col-4"><label class="form-label small">Start date</label><input class="form-control form-control-sm" name="start_date" type="date"></div>
+        <div class="col-4"><label class="form-label small">End date</label><input class="form-control form-control-sm" name="end_date" type="date"></div>
+        <div class="col-4"><label class="form-label small">Budget</label><input class="form-control form-control-sm" name="budget" type="number" step="0.01"></div>
+        <div class="col-4"><label class="form-label small">Status</label>
+          <select class="form-select form-select-sm" name="status">
+            <option value="planned">Planned</option><option value="in_progress">In progress</option>
+            <option value="done">Done</option><option value="cancelled">Cancelled</option>
+          </select></div>
+        <div class="col-4"><label class="form-label small">Priority</label>
+          <select class="form-select form-select-sm" name="priority">
+            <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
+          </select></div>
+        <div class="col-12"><label class="form-label small">Notes</label><textarea class="form-control form-control-sm" name="notes" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
+  </div></div>
+</div>
+
+</body>
+</html>

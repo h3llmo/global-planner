@@ -745,6 +745,89 @@ planRouter.delete('/api/milestones/:id', async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+planRouter.get('/assets', async (req, res) => {
+  try {
+    const permissionsConfig = await db.getPermissionsConfig();
+    const activeRole = getActiveRole(req, permissionsConfig);
+    const perms      = getRolePermissions(activeRole, permissionsConfig);
+    const allPlans   = db.listPlans();
+
+    const [
+      { people },
+      { addresses },
+      { incomes },
+      { project },
+      { contracts },
+      { periodic_expenses: periodicExpenses },
+      mortgages,
+      { properties: realEstate },
+      { bank_accounts: bankAccounts },
+    ] = await Promise.all([
+      db.getPeople(),
+      db.getAddresses(),
+      db.getIncomes(),
+      db.getTimeline(),
+      db.getContracts(),
+      db.getPeriodicExpenses(),
+      db.getMortgages(),
+      db.getRealEstate(),
+      db.getBankAccounts(),
+    ]);
+
+    const addressMap = Object.fromEntries(addresses.map(a => [a.id, a]));
+
+    const filteredPeople      = filterPeople(people, perms);
+    const filteredIncomes     = filterIncomes(incomes, perms);
+    const filteredContracts   = filterContracts(contracts.filter(c => c.direction !== 'income'), perms);
+    const employmentContracts = contracts.filter(c => c.direction === 'income');
+    const filteredEmployment  = perms.has('display_amounts')
+      ? employmentContracts
+      : employmentContracts.map(c => ({
+          ...c,
+          periods: c.periods.map(p => ({ start_date: p.start_date, end_date: p.end_date })),
+        }));
+    const filteredPeriodic     = filterPeriodicExpenses(periodicExpenses, perms);
+    const filteredMortgages    = filterMortgages(mortgages, perms);
+    const filteredBankAccounts = filterBankAccounts(bankAccounts, perms);
+
+    const incomeMap = {};
+    for (const inc of filteredIncomes) {
+      if (!incomeMap[inc.person_id]) incomeMap[inc.person_id] = [];
+      incomeMap[inc.person_id].push(inc);
+    }
+
+    const oidcUser = (req.oidc && req.oidc.isAuthenticated())
+      ? { name: req.oidc.user.name, email: req.oidc.user.email, picture: req.oidc.user.picture }
+      : null;
+
+    const template = fs.readFileSync(path.join(__dirname, 'views', 'assets.html'), 'utf8');
+    const html = template
+      .replace('__PROJECT_JSON__',            JSON.stringify(project))
+      .replace('__PEOPLE_JSON__',             JSON.stringify(filteredPeople))
+      .replace('__ADDRESSES_JSON__',          JSON.stringify(addresses))
+      .replace('__ADDRESS_MAP_JSON__',        JSON.stringify(addressMap))
+      .replace('__INCOME_MAP_JSON__',         JSON.stringify(incomeMap))
+      .replace('__INCOMES_JSON__',            JSON.stringify(filteredIncomes))
+      .replace('__CONTRACTS_JSON__',          JSON.stringify(filteredContracts))
+      .replace('__PERIODIC_EXPENSES_JSON__',  JSON.stringify(filteredPeriodic))
+      .replace('__MORTGAGES_JSON__',          JSON.stringify(filteredMortgages))
+      .replace('__REAL_ESTATE_JSON__',        JSON.stringify(realEstate))
+      .replace('__BANK_ACCOUNTS_JSON__',      JSON.stringify(filteredBankAccounts))
+      .replace('__EMPLOYMENT_JSON__',         JSON.stringify(filteredEmployment))
+      .replace('__ROLE_JSON__',               JSON.stringify(activeRole))
+      .replace('__PERMISSIONS_CONFIG_JSON__', JSON.stringify(permissionsConfig))
+      .replace('__USER_JSON__',               JSON.stringify(oidcUser))
+      .replace('__PLAN_JSON__',               JSON.stringify(req.activePlan))
+      .replace('__ALL_PLANS_JSON__',          JSON.stringify(allPlans))
+      .replace('__IS_PRODUCTION_JSON__',      JSON.stringify(process.env.NODE_ENV === 'production'));
+
+    res.send(html);
+  } catch (e) {
+    console.error('Error rendering assets:', e);
+    res.status(500).send(`<pre>Error: ${e.message}\n${e.stack}</pre>`);
+  }
+});
+
 planRouter.get('/', async (req, res) => {
   try {
     const permissionsConfig = await db.getPermissionsConfig();

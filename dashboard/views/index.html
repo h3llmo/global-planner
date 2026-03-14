@@ -11,7 +11,7 @@
 </head>
 <body class="bg-light">
 
-<nav class="navbar navbar-dark bg-dark mb-4">
+<nav class="navbar navbar-dark bg-dark mb-0">
   <div class="container">
     <div class="d-flex align-items-center gap-2">
       <a class="navbar-brand fw-bold text-decoration-none" href="/"><i class="bi bi-bar-chart-line me-1"></i></a>
@@ -44,31 +44,31 @@
   </div>
 </nav>
 
-<div class="container pb-5">
+<!-- Tab navigation -->
+<div class="bg-dark border-bottom border-secondary">
+  <div class="container">
+    <ul class="nav nav-underline py-1">
+      <li class="nav-item">
+        <a class="nav-link text-light" id="tab-plan" href="#">
+          <i class="bi bi-graph-up me-1"></i>Plan
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-light" id="tab-assets" href="#">
+          <i class="bi bi-archive me-1"></i>Assets
+        </a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div class="container pb-5 pt-4">
 
   <!-- Project Overview -->
   <section class="mb-5">
     <h2 class="section-title" data-i18n="sectionOverview"></h2>
     <div class="card shadow-sm">
       <div class="card-body" id="project-overview"></div>
-    </div>
-  </section>
-
-  <!-- People (adults + children) -->
-  <section class="mb-5">
-    <h2 class="section-title d-flex align-items-center justify-content-between">
-      <span data-i18n="sectionPeople"></span>
-      <div class="d-flex gap-2 align-items-center">
-        <button class="btn btn-sm btn-outline-primary" onclick="openPersonModal(null)"><i class="bi bi-plus-lg"></i> Add</button>
-        <button class="btn btn-sm btn-outline-secondary" type="button"
-                data-bs-toggle="collapse" data-bs-target="#people-collapse"
-                aria-expanded="false" aria-controls="people-collapse"
-                data-i18n-expand="sectionExpand" data-i18n-collapse="sectionCollapse">
-        </button>
-      </div>
-    </h2>
-    <div class="collapse" id="people-collapse">
-      <div class="row g-4" id="people-cards"></div>
     </div>
   </section>
 
@@ -86,18 +86,16 @@
 
   <!-- Employment Contracts -->
   <section class="mb-5" id="section-employment">
-    <h2 class="section-title d-flex align-items-center justify-content-between">
+    <h2 class="section-title">
       <span data-i18n="sectionEmployment"></span>
-      <button class="btn btn-sm btn-outline-primary" onclick="openContractModal(null, 'income')"><i class="bi bi-plus-lg"></i> Add Employment</button>
     </h2>
     <div id="employment-cards" class="row g-4"></div>
   </section>
 
   <!-- Real Estate & Mortgages -->
   <section class="mb-5">
-    <h2 class="section-title d-flex align-items-center justify-content-between">
+    <h2 class="section-title">
       <span data-i18n="sectionRealEstate"></span>
-      <button class="btn btn-sm btn-outline-primary" onclick="openPropertyModal(null)"><i class="bi bi-plus-lg"></i> Add Property</button>
     </h2>
     <div id="realestate-cards"></div>
   </section>
@@ -107,7 +105,6 @@
     <h2 class="section-title d-flex align-items-center justify-content-between">
       <span data-i18n="sectionBankAccounts"></span>
       <div class="d-flex gap-2 align-items-center">
-        <button class="btn btn-sm btn-outline-primary" onclick="openBankModal(null)"><i class="bi bi-plus-lg"></i> Add</button>
         <button class="btn btn-sm btn-outline-secondary" type="button"
                 data-bs-toggle="collapse" data-bs-target="#bank-accounts-collapse"
                 aria-expanded="false" aria-controls="bank-accounts-collapse"
@@ -122,52 +119,32 @@
 
   <!-- Incomes -->
   <section class="mb-5" id="section-incomes">
-    <h2 class="section-title d-flex align-items-center justify-content-between">
+    <h2 class="section-title">
       <span>Incomes</span>
-      <button class="btn btn-sm btn-outline-primary" onclick="openIncomeModal(null)"><i class="bi bi-plus-lg"></i> Add Income</button>
     </h2>
     <div id="incomes-cards" class="row g-4"></div>
   </section>
 
   <!-- Expense Contracts -->
   <section class="mb-5" id="section-contracts">
-    <h2 class="section-title d-flex align-items-center justify-content-between">
+    <h2 class="section-title">
       <span>Contracts</span>
-      <button class="btn btn-sm btn-outline-primary" onclick="openContractModal(null, 'expense')"><i class="bi bi-plus-lg"></i> Add Contract</button>
     </h2>
     <div id="contracts-cards" class="row g-4"></div>
   </section>
 
   <!-- Periodic Expenses -->
   <section class="mb-5" id="section-periodic">
-    <h2 class="section-title d-flex align-items-center justify-content-between">
+    <h2 class="section-title">
       <span>Periodic Expenses</span>
-      <button class="btn btn-sm btn-outline-primary" onclick="openPeriodicModal(null)"><i class="bi bi-plus-lg"></i> Add Expense</button>
     </h2>
     <div id="periodic-cards" class="row g-4"></div>
   </section>
 
-  <!-- Addresses -->
-  <section class="mb-5" id="section-addresses">
-    <h2 class="section-title d-flex align-items-center justify-content-between">
-      <span>Addresses</span>
-      <div class="d-flex gap-2 align-items-center">
-        <button class="btn btn-sm btn-outline-primary" onclick="openAddressModal(null)"><i class="bi bi-plus-lg"></i> Add</button>
-        <button class="btn btn-sm btn-outline-secondary" type="button"
-                data-bs-toggle="collapse" data-bs-target="#addresses-collapse"
-                aria-expanded="false" aria-controls="addresses-collapse">Show</button>
-      </div>
-    </h2>
-    <div class="collapse" id="addresses-collapse">
-      <div id="addresses-list"></div>
-    </div>
-  </section>
-
   <!-- Timeline -->
   <section class="mb-5">
-    <h2 class="section-title d-flex align-items-center justify-content-between">
+    <h2 class="section-title">
       <span data-i18n="sectionTimeline"></span>
-      <button class="btn btn-sm btn-outline-primary" onclick="openMilestoneModal(null)"><i class="bi bi-plus-lg"></i> Add Milestone</button>
     </h2>
     <div class="card shadow-sm">
       <ul class="list-group list-group-flush" id="timeline-list"></ul>
@@ -298,6 +275,11 @@
   const activePlan  = __PLAN_JSON__;        // {id, name, members, ...}
   const allPlans    = __ALL_PLANS_JSON__;   // [{id, name, ...}]
   const PLAN_BASE   = `/plan/${activePlan.id}`;  // base URL for plan-scoped API calls
+
+  // Tab navigation
+  document.getElementById('tab-plan').href   = PLAN_BASE;
+  document.getElementById('tab-assets').href = PLAN_BASE + '/assets';
+  document.getElementById('tab-plan').classList.add('active', 'fw-semibold', 'text-white');
   const activePerms = new Set(
     (permissionsConfig.roles.find(r => r.id === activeRole) || {}).permissions || []
   );
@@ -807,10 +789,6 @@
           <div class="card shadow-sm h-100" style="border-top:4px solid ${color}">
             <div class="card-header fw-bold d-flex justify-content-between align-items-center" style="color:${color}">
               <span>&#127968; ${m.contract}</span>
-              <div class="d-flex gap-1">
-                <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openMortgageModal(${m.id})"><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="crudDelete('mortgages',${m.id},'${(m.contract||'').replace(/'/g,'')}')"><i class="bi bi-trash"></i></button>
-              </div>
             </div>
             <div class="card-body p-0">
               <table class="table table-sm table-borderless mb-0 small">
@@ -837,9 +815,6 @@
             <span class="text-muted small">${t('propOwners')}: <strong>${ownerNames}</strong></span>
             <span class="badge bg-secondary">${t('propType_' + prop.type)}</span>
             <span class="badge bg-primary">${t('propStatus_' + prop.status)}</span>
-            <button class="btn btn-sm btn-outline-primary py-0" onclick="openMortgageModal(null,${prop.id})"><i class="bi bi-plus-lg"></i> Mortgage</button>
-            <button class="btn btn-sm btn-outline-secondary py-0" onclick="openPropertyModal(${prop.id})"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-sm btn-outline-danger py-0" onclick="crudDelete('properties',${prop.id},'${fmtAddress(addr).replace(/'/g,'')}')"><i class="bi bi-trash"></i></button>
           </div>
         </div>
         <div class="card-body">
@@ -977,10 +952,6 @@
               <div class="text-end d-flex flex-column align-items-end gap-1">
                 ${contractTypeBadge}
                 <div class="small text-muted">${person.name || ''}</div>
-                <div class="d-flex gap-1 mt-1">
-                  <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openContractModal(${c.id})"><i class="bi bi-pencil"></i></button>
-                  <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="crudDelete('contracts',${c.id},'${c.title.replace(/'/g,'')}')"><i class="bi bi-trash"></i></button>
-                </div>
               </div>
             </div>
             ${c.employment_start ? `
@@ -1524,10 +1495,6 @@
               ${p.id_card ? `<tr><th class="text-muted">${t('labelIDCard')}</th><td><code>${p.id_card.number}</code>${copyBtn(p.id_card.number)} <span class="text-muted small">(${t('labelExpiry')} ${fmtDate(p.id_card.expiry)})</span></td></tr>` : ''}
             </table>
           </div>
-          <div class="card-footer d-flex justify-content-end gap-1 py-2">
-            <button class="btn btn-sm btn-outline-secondary" onclick="openPersonModal(${p.id})"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-sm btn-outline-danger" onclick="crudDelete('people',${p.id},'${p.name.replace(/'/g,'')}')"><i class="bi bi-trash"></i></button>
-          </div>
         </div>
       </div>`;
     }).join('');
@@ -1548,10 +1515,6 @@
               <tr><th class="text-muted">${t('labelAddress')}</th><td>${fmtAddress(addr)}</td></tr>
               ${child.id_card   ? `<tr><th class="text-muted">${t('labelIDCard')}</th><td><code>${child.id_card.number}</code>${copyBtn(child.id_card.number)} <span class="text-muted small">(${t('labelExpiry')} ${fmtDate(child.id_card.expiry)})</span></td></tr>` : ''}
             </table>
-          </div>
-          <div class="card-footer d-flex justify-content-end gap-1 py-2">
-            <button class="btn btn-sm btn-outline-secondary" onclick="openPersonModal(${child.id})"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-sm btn-outline-danger" onclick="crudDelete('people',${child.id},'${child.name.replace(/'/g,'')}')"><i class="bi bi-trash"></i></button>
           </div>
         </div>
       </div>`;
@@ -1581,10 +1544,6 @@
             <td><code>${acc.iban}</code>${copyBtn(acc.iban)}</td>
             <td><span class="badge bg-secondary">${typeLabel}</span></td>
             <td class="small">${cards}</td>
-            <td class="text-nowrap">
-              <button class="btn btn-sm btn-outline-secondary p-1" onclick="openBankModal(${acc.id})"><i class="bi bi-pencil"></i></button>
-              <button class="btn btn-sm btn-outline-danger p-1" onclick="crudDelete('bank-accounts',${acc.id},'${acc.iban}')"><i class="bi bi-trash"></i></button>
-            </td>
           </tr>`;
         }).join('');
         return `
@@ -1594,7 +1553,7 @@
             <table class="table table-hover table-sm mb-0">
               <thead class="table-dark"><tr>
                 <th>${t('bankName')}</th><th></th><th>${t('bankIBAN')}</th>
-                <th>${t('bankType')}</th><th>${t('bankCards')}</th><th></th>
+                <th>${t('bankType')}</th><th>${t('bankCards')}</th>
               </tr></thead>
               <tbody>${rows}</tbody>
             </table>
@@ -1631,10 +1590,6 @@
           <div class="card shadow-sm h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
               <span class="fw-semibold">&#128200; ${person?.name || 'Person ' + inc.person_id} — ${inc.year}</span>
-              <div class="d-flex gap-1">
-                ${inc.id ? `<button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openIncomeModal(${inc.id})"><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="crudDelete('incomes',${inc.id},'${inc.year}')"><i class="bi bi-trash"></i></button>` : ''}
-              </div>
             </div>
             <div class="card-body small p-2">
               ${inc.avg_net_monthly_salary != null ? `<div>Net/mo: <strong>${fmt(inc.avg_net_monthly_salary)}</strong></div>` : ''}
@@ -1662,10 +1617,6 @@
           <div class="card shadow-sm h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
               <span class="fw-semibold">${tExp(c)}</span>
-              <div class="d-flex gap-1">
-                <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openContractModal(${c.id})"><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="crudDelete('contracts',${c.id},'${c.title.replace(/'/g,'')}')"><i class="bi bi-trash"></i></button>
-              </div>
             </div>
             <div class="card-body small p-2">
               <div><span class="badge bg-light text-dark border">${tCat(c)}</span></div>
@@ -1692,10 +1643,6 @@
           <div class="card shadow-sm h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
               <span class="fw-semibold">${tExp(e)}</span>
-              <div class="d-flex gap-1">
-                <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openPeriodicModal(${e.id})"><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="crudDelete('periodic-expenses',${e.id},'${e.title.replace(/'/g,'')}')"><i class="bi bi-trash"></i></button>
-              </div>
             </div>
             <div class="card-body small p-2">
               <div><span class="badge bg-light text-dark border">${tCat(e)}</span></div>
@@ -1707,23 +1654,6 @@
       }).join('');
     } else {
       periodicSection.style.display = 'none';
-    }
-
-    // Addresses
-    const addrList = document.getElementById('addresses-list');
-    if (addrList) {
-      const addrArr = Object.values(addressMap);
-      addrList.innerHTML = addrArr.length
-        ? `<div class="list-group">${addrArr.map(a =>
-            `<div class="list-group-item d-flex justify-content-between align-items-center">
-              <span>${a.street_number ? a.street_number + ' ' : ''}${a.street_name}, ${a.postal_code} ${a.city}, ${a.country}</span>
-              <div class="d-flex gap-1">
-                <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openAddressModal(${a.id})"><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="crudDelete('addresses',${a.id},'${a.street_name.replace(/'/g,'')}')"><i class="bi bi-trash"></i></button>
-              </div>
-            </div>`
-          ).join('')}</div>`
-        : '<p class="text-muted small">No addresses yet.</p>';
     }
 
     // Timeline
@@ -1740,8 +1670,6 @@
           </div>
           <div class="ms-3 text-nowrap d-flex align-items-center gap-2">
             ${statusBadge(m.status)}
-            <button class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="openMilestoneModal(${m.id})"><i class="bi bi-pencil"></i></button>
-            <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="crudDelete('milestones',${m.id},'${(m.title||'').replace(/'/g,'')}')"><i class="bi bi-trash"></i></button>
           </div>
         </div>
       </li>`).join('');
@@ -1904,312 +1832,6 @@
   // Keep collapse button labels in sync with collapse state
   document.addEventListener('show.bs.collapse',  e => { const btn = document.querySelector(`[data-bs-target="#${e.target.id}"]`); if (btn) btn.textContent = t('sectionCollapse'); });
   document.addEventListener('hide.bs.collapse',  e => { const btn = document.querySelector(`[data-bs-target="#${e.target.id}"]`); if (btn) btn.textContent = t('sectionExpand');   });
-</script>
-
-<script>
-// ── CRUD data registry ────────────────────────────────────────────────────────
-// Populated once at page load; avoids JSON/quoting issues in onclick attrs.
-const _cd = { people: {}, addresses: {}, properties: {}, bankAccounts: {}, contracts: {}, periodicExpenses: {}, mortgages: {}, incomes: {}, milestones: {} };
-
-people.forEach(p => {
-  _cd.people[p.id] = {
-    id: p.id, name: p.name, role: p.role || '', birth_date: p.birth_date || '',
-    gender: p.gender || '', address_id: p.address_id || '',
-    phone: p.contact?.phone || '', email: p.contact?.email || '',
-    auth0_email: p.auth0_email || '',
-    national_number_be: p.national_number_be || '', cns_lu: p.cns_lu || '',
-    id_card_number: p.id_card?.number || '', id_card_expiry: p.id_card?.expiry || '',
-    occupation_location: p.occupation?.location || '',
-    occupation_company: p.occupation?.company || '',
-    occupation_position: p.occupation?.position || '',
-  };
-});
-
-Object.values(addressMap).forEach(a => { _cd.addresses[a.id] = a; });
-
-realEstate.forEach(p => { _cd.properties[p.id] = p; });
-
-bankAccounts.forEach(a => { _cd.bankAccounts[a.id] = a; });
-
-[...contracts, ...employmentContracts].forEach(c => { _cd.contracts[c.id] = c; });
-
-periodicExpenses.forEach(e => { _cd.periodicExpenses[e.id] = e; });
-
-mortgages.forEach(m => {
-  if (m.id) _cd.mortgages[m.id] = { ...m, contract_ref: m.contract };
-});
-
-Object.values(incomeMap).flat().forEach(inc => {
-  if (!inc.id) return;
-  const ob = inc.other_benefits || {};
-  _cd.incomes[inc.id] = {
-    id: inc.id, person_id: inc.person_id, year: inc.year,
-    avg_gross_monthly_salary: inc.avg_gross_monthly_salary || '',
-    avg_net_monthly_salary: inc.avg_net_monthly_salary || '',
-    health_insurance: ob.health_insurance || false,
-    transportation_allowance: ob.transportation_allowance || '',
-    meal_vouchers: ob.meal_vouchers || '',
-    performance_bonus_gross: ob.performance_bonus?.amount || '',
-    performance_bonus_net: ob.performance_bonus?.net_amount || '',
-    end_of_year_bonus_gross: ob.end_of_year_bonus?.amount || '',
-    end_of_year_bonus_net: ob.end_of_year_bonus?.net_amount || '',
-    child_allowance: ob.child_allowance || '',
-  };
-});
-
-project.milestones.forEach(m => {
-  _cd.milestones[m.id] = {
-    id: m.id, title: m.title, description: m.description || '',
-    start_date: m.startDate || '', end_date: m.endDate || '',
-    status: m.status || 'planned', priority: m.priority || 'medium',
-    budget: m.budget || '', notes: m.notes || '',
-  };
-});
-
-// ── CRUD helpers ──────────────────────────────────────────────────────────────
-
-async function crudFetch(method, url, body) {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
-  if (body) opts.body = JSON.stringify(body);
-  const r = await fetch(url, opts);
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.error || `${r.status} ${r.statusText}`);
-  return data;
-}
-
-async function crudDelete(resource, id, label) {
-  if (!confirm(`Delete${label ? ' "' + label + '"' : ''}?\nThis cannot be undone.`)) return;
-  try {
-    await crudFetch('DELETE', `${PLAN_BASE}/api/${resource}/${id}`);
-    window.location.reload();
-  } catch (e) { alert('Error: ' + e.message); }
-}
-
-function openCrudModal(modalId, data, submitFn) {
-  const modalEl = document.getElementById(modalId);
-  if (!modalEl) return;
-  const modal = new bootstrap.Modal(modalEl);
-  if (data) {
-    Object.entries(data).forEach(([key, val]) => {
-      const el = modalEl.querySelector(`[name="${key}"]`);
-      if (!el) return;
-      if (el.type === 'checkbox') el.checked = !!val;
-      else el.value = val ?? '';
-    });
-  } else {
-    modalEl.querySelectorAll('input,select,textarea').forEach(el => {
-      if (el.type === 'checkbox') el.checked = false;
-      else el.value = '';
-    });
-  }
-  const saveBtn = modalEl.querySelector('.crud-save-btn');
-  if (saveBtn) {
-    const newBtn = saveBtn.cloneNode(true);
-    saveBtn.parentNode.replaceChild(newBtn, saveBtn);
-    newBtn.addEventListener('click', async () => {
-      newBtn.disabled = true;
-      newBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving\u2026';
-      try {
-        const formData = {};
-        modalEl.querySelectorAll('[name]').forEach(el => {
-          formData[el.name] = el.type === 'checkbox' ? el.checked : (el.value.trim() || null);
-        });
-        await submitFn(formData);
-        modal.hide();
-        window.location.reload();
-      } catch (e) {
-        alert('Error: ' + e.message);
-        newBtn.disabled = false;
-        newBtn.innerHTML = '<i class="bi bi-check2 me-1"></i>Save';
-      }
-    });
-  }
-  modal.show();
-}
-
-// ── Populate selects ──────────────────────────────────────────────────────────
-function populateAddressSelect(selId, selectedId) {
-  const sel = document.getElementById(selId);
-  if (!sel) return;
-  sel.innerHTML = '<option value="">— none —</option>' +
-    Object.values(_cd.addresses).map(a =>
-      `<option value="${a.id}" ${a.id == selectedId ? 'selected' : ''}>${a.street_number ? a.street_number + ' ' : ''}${a.street_name}, ${a.city}</option>`
-    ).join('');
-}
-function populatePeopleSelect(selId, selectedId) {
-  const sel = document.getElementById(selId);
-  if (!sel) return;
-  sel.innerHTML = '<option value="">— none —</option>' +
-    people.map(p =>
-      `<option value="${p.id}" ${p.id == selectedId ? 'selected' : ''}>${p.name}</option>`
-    ).join('');
-}
-function populatePropertySelect(selId, selectedId) {
-  const sel = document.getElementById(selId);
-  if (!sel) return;
-  sel.innerHTML = '<option value="">— none —</option>' +
-    realEstate.map(p => {
-      const addr = addressMap[p.address_id] || {};
-      return `<option value="${p.id}" ${p.id == selectedId ? 'selected' : ''}>${addr.street_name || 'Property'} (${p.type})</option>`;
-    }).join('');
-}
-function populateOwnerCheckboxes(containerId, selectedIds) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-  container.innerHTML = people.map(p =>
-    `<div class="form-check form-check-inline">
-      <input class="form-check-input prop-owner-cb" type="checkbox" id="po_${p.id}" value="${p.id}" ${(selectedIds||[]).includes(p.id) ? 'checked' : ''}>
-      <label class="form-check-label small" for="po_${p.id}">${p.name}</label>
-    </div>`
-  ).join('');
-}
-
-// ── Address CRUD ──────────────────────────────────────────────────────────────
-function openAddressModal(idOrData) {
-  const data = typeof idOrData === 'number' ? _cd.addresses[idOrData] : idOrData;
-  openCrudModal('addrModal', data, async (fd) => {
-    const id = fd.id;
-    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/addresses/${id}`, fd);
-    else await crudFetch('POST', `${PLAN_BASE}/api/addresses`, fd);
-  });
-}
-
-// ── Person CRUD ───────────────────────────────────────────────────────────────
-function openPersonModal(idOrData) {
-  const data = typeof idOrData === 'number' ? _cd.people[idOrData] : idOrData;
-  populateAddressSelect('personAddrSel', data?.address_id);
-  openCrudModal('personModal', data, async (fd) => {
-    const id = fd.id;
-    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/people/${id}`, fd);
-    else await crudFetch('POST', `${PLAN_BASE}/api/people`, fd);
-  });
-}
-
-// ── Property CRUD ─────────────────────────────────────────────────────────────
-function openPropertyModal(idOrData) {
-  const data = typeof idOrData === 'number' ? _cd.properties[idOrData] : idOrData;
-  populateAddressSelect('propAddrSel', data?.address_id);
-  populateOwnerCheckboxes('propOwnerSel', data?.owner_ids);
-  openCrudModal('propertyModal', data, async (fd) => {
-    fd.owner_ids = [...document.querySelectorAll('.prop-owner-cb:checked')].map(c => Number(c.value));
-    const id = fd.id;
-    delete fd.id;
-    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/properties/${id}`, { ...fd });
-    else await crudFetch('POST', `${PLAN_BASE}/api/properties`, fd);
-  });
-}
-
-// ── Bank Account CRUD ─────────────────────────────────────────────────────────
-function openBankModal(idOrData) {
-  const data = typeof idOrData === 'number' ? _cd.bankAccounts[idOrData] : idOrData;
-  populatePeopleSelect('bankPersonSel', data?.person_id);
-  openCrudModal('bankModal', data, async (fd) => {
-    const id = fd.id;
-    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/bank-accounts/${id}`, fd);
-    else await crudFetch('POST', `${PLAN_BASE}/api/bank-accounts`, fd);
-  });
-}
-
-// ── Contract CRUD ─────────────────────────────────────────────────────────────
-function openContractModal(idOrData, defaultDirection) {
-  const data = typeof idOrData === 'number' ? _cd.contracts[idOrData] : idOrData;
-  populatePeopleSelect('contractPersonSel', data?.owner_id);
-  populatePropertySelect('contractPropSel', data?.property_id);
-  const firstPeriod = (data?.periods || [])[0] || {};
-  const enriched = data ? {
-    ...data,
-    direction: data.direction || defaultDirection || 'expense',
-    consultant_relevant: data.consultant_relevant !== false,
-    _period_monthly_cost: firstPeriod.monthly_cost,
-    _period_gross_monthly: firstPeriod.gross_monthly,
-    _period_start_date: firstPeriod.start_date,
-    _period_end_date: firstPeriod.end_date,
-    _period_rate: firstPeriod.rate,
-    _period_rate_type: firstPeriod.rate_type,
-  } : { direction: defaultDirection || 'expense', consultant_relevant: true };
-  openCrudModal('contractModal', enriched, async (fd) => {
-    const periods = [{
-      monthly_cost: parseFloat(fd._period_monthly_cost) || 0,
-      gross_monthly: parseFloat(fd._period_gross_monthly) || null,
-      start_date: fd._period_start_date || null, end_date: fd._period_end_date || null,
-      rate: parseFloat(fd._period_rate) || null, rate_type: fd._period_rate_type || null,
-    }];
-    const { _period_monthly_cost, _period_gross_monthly, _period_start_date, _period_end_date, _period_rate, _period_rate_type, id, ...contractData } = fd;
-    contractData.periods = periods;
-    contractData.consultant_relevant = document.querySelector('#contractModal [name="consultant_relevant"]').checked;
-    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/contracts/${id}`, contractData);
-    else await crudFetch('POST', `${PLAN_BASE}/api/contracts`, contractData);
-  });
-}
-
-// ── Periodic Expense CRUD ─────────────────────────────────────────────────────
-window._periodicPayments = [];
-function addPeriodicPaymentRow(label, amount) {
-  window._periodicPayments.push({ label: label || '', amount: amount || '' });
-  renderPeriodicPaymentRows();
-}
-function removePeriodicPaymentRow(i) {
-  window._periodicPayments.splice(i, 1);
-  renderPeriodicPaymentRows();
-}
-function renderPeriodicPaymentRows() {
-  const container = document.getElementById('periodicPayments');
-  if (!container) return;
-  container.innerHTML = window._periodicPayments.map((p, i) =>
-    `<div class="d-flex gap-1 mb-1 align-items-center">
-       <input class="form-control form-control-sm" placeholder="Label" value="${p.label||''}" onchange="window._periodicPayments[${i}].label=this.value">
-       <input class="form-control form-control-sm" placeholder="Amount" type="number" step="0.01" value="${p.amount||''}" onchange="window._periodicPayments[${i}].amount=parseFloat(this.value)||0" style="max-width:100px">
-       <button type="button" class="btn btn-sm btn-outline-danger" onclick="removePeriodicPaymentRow(${i})"><i class="bi bi-trash"></i></button>
-     </div>`
-  ).join('');
-}
-function openPeriodicModal(idOrData) {
-  const data = typeof idOrData === 'number' ? _cd.periodicExpenses[idOrData] : idOrData;
-  window._periodicPayments = (data?.payments || []).map(p => ({ ...p }));
-  renderPeriodicPaymentRows();
-  populatePeopleSelect('periodicPersonSel', data?.owner_id);
-  populatePropertySelect('periodicPropSel', data?.property_id);
-  openCrudModal('periodicModal', data, async (fd) => {
-    const id = fd.id;
-    const body = { ...fd, payments: window._periodicPayments.filter(p => p.label) };
-    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/periodic-expenses/${id}`, body);
-    else await crudFetch('POST', `${PLAN_BASE}/api/periodic-expenses`, body);
-  });
-}
-
-// ── Mortgage CRUD ─────────────────────────────────────────────────────────────
-function openMortgageModal(idOrData, defaultPropertyId) {
-  const data = typeof idOrData === 'number' ? _cd.mortgages[idOrData] : idOrData;
-  populatePeopleSelect('mortgagePersonSel', data?.owner_id);
-  populatePropertySelect('mortgagePropSel', data?.property_id || defaultPropertyId);
-  openCrudModal('mortgageModal', data || { property_id: defaultPropertyId }, async (fd) => {
-    const id = fd.id;
-    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/mortgages/${id}`, fd);
-    else await crudFetch('POST', `${PLAN_BASE}/api/mortgages`, fd);
-  });
-}
-
-// ── Income CRUD ───────────────────────────────────────────────────────────────
-function openIncomeModal(idOrData) {
-  const data = typeof idOrData === 'number' ? _cd.incomes[idOrData] : idOrData;
-  populatePeopleSelect('incomePersonSel', data?.person_id);
-  openCrudModal('incomeModal', data, async (fd) => {
-    const id = fd.id;
-    fd.health_insurance = document.querySelector('#incomeModal [name="health_insurance"]').checked;
-    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/incomes/${id}`, fd);
-    else await crudFetch('POST', `${PLAN_BASE}/api/incomes`, fd);
-  });
-}
-
-// ── Milestone CRUD ────────────────────────────────────────────────────────────
-function openMilestoneModal(idOrData) {
-  const data = typeof idOrData === 'number' ? _cd.milestones[idOrData] : idOrData;
-  openCrudModal('milestoneModal', data, async (fd) => {
-    const id = fd.id;
-    if (id) await crudFetch('PUT', `${PLAN_BASE}/api/milestones/${id}`, fd);
-    else await crudFetch('POST', `${PLAN_BASE}/api/milestones`, fd);
-  });
-}
 </script>
 
 <!-- Fixed bottom rate bar -->
@@ -2397,245 +2019,6 @@ function openMilestoneModal(idOrData) {
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<!-- Address Modal -->
-<div class="modal fade" id="addrModal" tabindex="-1">
-  <div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Address</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body">
-      <input type="hidden" name="id">
-      <div class="row g-2">
-        <div class="col-3"><label class="form-label small">N°</label><input class="form-control form-control-sm" name="street_number"></div>
-        <div class="col-9"><label class="form-label small">Street *</label><input class="form-control form-control-sm" name="street_name" required></div>
-        <div class="col-4"><label class="form-label small">Postal code *</label><input class="form-control form-control-sm" name="postal_code" required></div>
-        <div class="col-8"><label class="form-label small">City *</label><input class="form-control form-control-sm" name="city" required></div>
-        <div class="col-4"><label class="form-label small">Country code *</label><input class="form-control form-control-sm" name="country_code" placeholder="LU" required></div>
-        <div class="col-8"><label class="form-label small">Country *</label><input class="form-control form-control-sm" name="country" required></div>
-      </div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
-  </div></div>
-</div>
-
-<!-- Person Modal -->
-<div class="modal fade" id="personModal" tabindex="-1">
-  <div class="modal-dialog modal-lg"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Person</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body">
-      <input type="hidden" name="id">
-      <div class="row g-2">
-        <div class="col-8"><label class="form-label small">Full name *</label><input class="form-control form-control-sm" name="name" required></div>
-        <div class="col-4"><label class="form-label small">Role</label>
-          <select class="form-select form-select-sm" name="role"><option value="">adult</option><option value="child">child</option></select></div>
-        <div class="col-4"><label class="form-label small">Birth date</label><input class="form-control form-control-sm" name="birth_date" type="date"></div>
-        <div class="col-4"><label class="form-label small">Gender</label>
-          <select class="form-select form-select-sm" name="gender"><option value="">—</option><option>male</option><option>female</option></select></div>
-        <div class="col-4"><label class="form-label small">Address</label>
-          <select class="form-select form-select-sm" name="address_id" id="personAddrSel"></select></div>
-        <div class="col-6"><label class="form-label small">Phone</label><input class="form-control form-control-sm" name="phone" type="tel"></div>
-        <div class="col-6"><label class="form-label small">Email</label><input class="form-control form-control-sm" name="email" type="email"></div>
-        <div class="col-6"><label class="form-label small">Auth0 email</label><input class="form-control form-control-sm" name="auth0_email" type="email"></div>
-        <div class="col-6"><label class="form-label small">National number (BE)</label><input class="form-control form-control-sm" name="national_number_be"></div>
-        <div class="col-6"><label class="form-label small">CNS (LU)</label><input class="form-control form-control-sm" name="cns_lu"></div>
-        <div class="col-6"><label class="form-label small">ID card number</label><input class="form-control form-control-sm" name="id_card_number"></div>
-        <div class="col-6"><label class="form-label small">ID card expiry</label><input class="form-control form-control-sm" name="id_card_expiry" type="date"></div>
-        <div class="col-12"><hr class="my-1"><p class="small text-muted mb-1">Occupation</p></div>
-        <div class="col-4"><label class="form-label small">Location</label><input class="form-control form-control-sm" name="occupation_location"></div>
-        <div class="col-4"><label class="form-label small">Company</label><input class="form-control form-control-sm" name="occupation_company"></div>
-        <div class="col-4"><label class="form-label small">Position</label><input class="form-control form-control-sm" name="occupation_position"></div>
-      </div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
-  </div></div>
-</div>
-
-<!-- Property Modal -->
-<div class="modal fade" id="propertyModal" tabindex="-1">
-  <div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Property</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body">
-      <input type="hidden" name="id">
-      <div class="row g-2">
-        <div class="col-12"><label class="form-label small">Address *</label>
-          <select class="form-select form-select-sm" name="address_id" id="propAddrSel" required></select></div>
-        <div class="col-6"><label class="form-label small">Type *</label>
-          <select class="form-select form-select-sm" name="type" required>
-            <option value="apartment">Apartment</option><option value="house">House</option>
-            <option value="land">Land</option><option value="commercial">Commercial</option><option value="other">Other</option>
-          </select></div>
-        <div class="col-6"><label class="form-label small">Status *</label>
-          <select class="form-select form-select-sm" name="status" required>
-            <option value="primary_residence">Primary residence</option><option value="rental">Rental</option>
-            <option value="secondary">Secondary home</option><option value="building">Under construction</option>
-          </select></div>
-        <div class="col-12"><label class="form-label small">Owners</label>
-          <div id="propOwnerSel"></div></div>
-      </div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
-  </div></div>
-</div>
-
-<!-- Bank Account Modal -->
-<div class="modal fade" id="bankModal" tabindex="-1">
-  <div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Bank Account</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body">
-      <input type="hidden" name="id">
-      <div class="row g-2">
-        <div class="col-12"><label class="form-label small">Owner *</label>
-          <select class="form-select form-select-sm" name="person_id" id="bankPersonSel" required></select></div>
-        <div class="col-6"><label class="form-label small">Bank name *</label><input class="form-control form-control-sm" name="bank" required></div>
-        <div class="col-6"><label class="form-label small">Country *</label><input class="form-control form-control-sm" name="country" placeholder="LU" required></div>
-        <div class="col-8"><label class="form-label small">IBAN *</label><input class="form-control form-control-sm" name="iban" required></div>
-        <div class="col-4"><label class="form-label small">BIC</label><input class="form-control form-control-sm" name="bic"></div>
-        <div class="col-6"><label class="form-label small">Type *</label>
-          <select class="form-select form-select-sm" name="type" required>
-            <option value="checking">Checking</option><option value="savings">Savings</option>
-            <option value="joint">Joint</option><option value="other">Other</option>
-          </select></div>
-      </div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
-  </div></div>
-</div>
-
-<!-- Contract Modal -->
-<div class="modal fade" id="contractModal" tabindex="-1">
-  <div class="modal-dialog modal-lg"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Contract</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body">
-      <input type="hidden" name="id">
-      <div class="row g-2">
-        <div class="col-8"><label class="form-label small">Title *</label><input class="form-control form-control-sm" name="title" required></div>
-        <div class="col-4"><label class="form-label small">Direction</label>
-          <select class="form-select form-select-sm" name="direction"><option value="expense">Expense</option><option value="income">Income</option></select></div>
-        <div class="col-6"><label class="form-label small">Category *</label><input class="form-control form-control-sm" name="category" required></div>
-        <div class="col-6"><label class="form-label small">Owner *</label>
-          <select class="form-select form-select-sm" name="owner_id" id="contractPersonSel" required></select></div>
-        <div class="col-6"><label class="form-label small">Property</label>
-          <select class="form-select form-select-sm" name="property_id" id="contractPropSel"></select></div>
-        <div class="col-3"><label class="form-label small">Nominal</label><input class="form-control form-control-sm" name="nominal" type="number" step="0.01"></div>
-        <div class="col-3"><label class="form-label small">TAEG %</label><input class="form-control form-control-sm" name="taeg" type="number" step="0.001"></div>
-        <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="consultant_relevant" id="contractCR" checked><label class="form-check-label small" for="contractCR">Consultant relevant</label></div></div>
-        <div class="col-12"><label class="form-label small">Notes</label><textarea class="form-control form-control-sm" name="notes" rows="2"></textarea></div>
-        <div class="col-12"><hr class="my-1"><p class="small text-muted mb-1">Period (main)</p></div>
-        <div class="col-4"><label class="form-label small">Monthly cost *</label><input class="form-control form-control-sm" name="_period_monthly_cost" type="number" step="0.01" required></div>
-        <div class="col-4"><label class="form-label small">Gross monthly</label><input class="form-control form-control-sm" name="_period_gross_monthly" type="number" step="0.01"></div>
-        <div class="col-4"><label class="form-label small">Rate %</label><input class="form-control form-control-sm" name="_period_rate" type="number" step="0.001"></div>
-        <div class="col-4"><label class="form-label small">Start date</label><input class="form-control form-control-sm" name="_period_start_date" type="date"></div>
-        <div class="col-4"><label class="form-label small">End date</label><input class="form-control form-control-sm" name="_period_end_date" type="date"></div>
-        <div class="col-4"><label class="form-label small">Rate type</label><input class="form-control form-control-sm" name="_period_rate_type" placeholder="fixed/variable"></div>
-      </div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
-  </div></div>
-</div>
-
-<!-- Periodic Expense Modal -->
-<div class="modal fade" id="periodicModal" tabindex="-1">
-  <div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Periodic Expense</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body">
-      <input type="hidden" name="id">
-      <div class="row g-2">
-        <div class="col-8"><label class="form-label small">Title *</label><input class="form-control form-control-sm" name="title" required></div>
-        <div class="col-4"><label class="form-label small">Owner *</label>
-          <select class="form-select form-select-sm" name="owner_id" id="periodicPersonSel" required></select></div>
-        <div class="col-6"><label class="form-label small">Category *</label><input class="form-control form-control-sm" name="category" required></div>
-        <div class="col-6"><label class="form-label small">Property</label>
-          <select class="form-select form-select-sm" name="property_id" id="periodicPropSel"></select></div>
-        <div class="col-12"><div class="form-check"><input class="form-check-input" type="checkbox" name="consultant_relevant" id="periodicCR" checked><label class="form-check-label small" for="periodicCR">Consultant relevant</label></div></div>
-        <div class="col-12"><hr class="my-1"><p class="small fw-semibold mb-1">Payments <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="addPeriodicPaymentRow()">+ Add</button></p>
-          <div id="periodicPayments"></div></div>
-      </div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
-  </div></div>
-</div>
-
-<!-- Mortgage Modal -->
-<div class="modal fade" id="mortgageModal" tabindex="-1">
-  <div class="modal-dialog modal-lg"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Mortgage</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body">
-      <input type="hidden" name="id">
-      <div class="row g-2">
-        <div class="col-6"><label class="form-label small">Reference *</label><input class="form-control form-control-sm" name="contract_ref" required></div>
-        <div class="col-6"><label class="form-label small">Owner *</label>
-          <select class="form-select form-select-sm" name="owner_id" id="mortgagePersonSel" required></select></div>
-        <div class="col-12"><label class="form-label small">Property *</label>
-          <select class="form-select form-select-sm" name="property_id" id="mortgagePropSel" required></select></div>
-        <div class="col-4"><label class="form-label small">Nominal</label><input class="form-control form-control-sm" name="nominal" type="number" step="0.01"></div>
-        <div class="col-4"><label class="form-label small">Rate %</label><input class="form-control form-control-sm" name="rate" type="number" step="0.001"></div>
-        <div class="col-4"><label class="form-label small">TAEG %</label><input class="form-control form-control-sm" name="taeg" type="number" step="0.001"></div>
-        <div class="col-4"><label class="form-label small">Months</label><input class="form-control form-control-sm" name="months" type="number"></div>
-        <div class="col-4"><label class="form-label small">Monthly payment</label><input class="form-control form-control-sm" name="monthly_payment" type="number" step="0.01"></div>
-        <div class="col-4"></div>
-        <div class="col-4"><label class="form-label small">First payment</label><input class="form-control form-control-sm" name="first_payment" type="date"></div>
-        <div class="col-4"><label class="form-label small">Last payment</label><input class="form-control form-control-sm" name="last_payment" type="date"></div>
-        <div class="col-4"><label class="form-label small">Effective date</label><input class="form-control form-control-sm" name="effective_date" type="date"></div>
-        <div class="col-4"><label class="form-label small">Total amount</label><input class="form-control form-control-sm" name="total_amount" type="number" step="0.01"></div>
-        <div class="col-4"><label class="form-label small">Total interest</label><input class="form-control form-control-sm" name="total_interest" type="number" step="0.01"></div>
-        <div class="col-4"><label class="form-label small">Capital amortized</label><input class="form-control form-control-sm" name="capital_amortized" type="number" step="0.01"></div>
-      </div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
-  </div></div>
-</div>
-
-<!-- Income Modal -->
-<div class="modal fade" id="incomeModal" tabindex="-1">
-  <div class="modal-dialog modal-lg"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Income Record</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body">
-      <input type="hidden" name="id">
-      <div class="row g-2">
-        <div class="col-6"><label class="form-label small">Person *</label>
-          <select class="form-select form-select-sm" name="person_id" id="incomePersonSel" required></select></div>
-        <div class="col-6"><label class="form-label small">Year *</label><input class="form-control form-control-sm" name="year" type="number" min="2000" max="2100" required></div>
-        <div class="col-6"><label class="form-label small">Avg gross monthly salary</label><input class="form-control form-control-sm" name="avg_gross_monthly_salary" type="number" step="0.01"></div>
-        <div class="col-6"><label class="form-label small">Avg net monthly salary</label><input class="form-control form-control-sm" name="avg_net_monthly_salary" type="number" step="0.01"></div>
-        <div class="col-4"><label class="form-label small">Meal vouchers/mo</label><input class="form-control form-control-sm" name="meal_vouchers" type="number" step="0.01"></div>
-        <div class="col-4"><label class="form-label small">Child allowance/mo</label><input class="form-control form-control-sm" name="child_allowance" type="number" step="0.01"></div>
-        <div class="col-4"><label class="form-label small">Transport allowance/mo</label><input class="form-control form-control-sm" name="transportation_allowance" type="number" step="0.01"></div>
-        <div class="col-4"><label class="form-label small">Perf. bonus (gross)</label><input class="form-control form-control-sm" name="performance_bonus_gross" type="number" step="0.01"></div>
-        <div class="col-4"><label class="form-label small">Perf. bonus (net)</label><input class="form-control form-control-sm" name="performance_bonus_net" type="number" step="0.01"></div>
-        <div class="col-4"><label class="form-label small">EOY bonus (gross)</label><input class="form-control form-control-sm" name="end_of_year_bonus_gross" type="number" step="0.01"></div>
-        <div class="col-4"><label class="form-label small">EOY bonus (net)</label><input class="form-control form-control-sm" name="end_of_year_bonus_net" type="number" step="0.01"></div>
-        <div class="col-4"><label class="form-label small"><input type="checkbox" name="health_insurance" class="form-check-input me-1">Health insurance</label></div>
-      </div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
-  </div></div>
-</div>
-
-<!-- Milestone Modal -->
-<div class="modal fade" id="milestoneModal" tabindex="-1">
-  <div class="modal-dialog"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Timeline Milestone</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-    <div class="modal-body">
-      <input type="hidden" name="id">
-      <div class="row g-2">
-        <div class="col-12"><label class="form-label small">Title *</label><input class="form-control form-control-sm" name="title" required></div>
-        <div class="col-12"><label class="form-label small">Description</label><textarea class="form-control form-control-sm" name="description" rows="2"></textarea></div>
-        <div class="col-4"><label class="form-label small">Start date</label><input class="form-control form-control-sm" name="start_date" type="date"></div>
-        <div class="col-4"><label class="form-label small">End date</label><input class="form-control form-control-sm" name="end_date" type="date"></div>
-        <div class="col-4"><label class="form-label small">Budget</label><input class="form-control form-control-sm" name="budget" type="number" step="0.01"></div>
-        <div class="col-4"><label class="form-label small">Status</label>
-          <select class="form-select form-select-sm" name="status">
-            <option value="planned">Planned</option><option value="in_progress">In progress</option>
-            <option value="done">Done</option><option value="cancelled">Cancelled</option>
-          </select></div>
-        <div class="col-4"><label class="form-label small">Priority</label>
-          <select class="form-select form-select-sm" name="priority">
-            <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
-          </select></div>
-        <div class="col-12"><label class="form-label small">Notes</label><textarea class="form-control form-control-sm" name="notes" rows="2"></textarea></div>
-      </div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary btn-sm crud-save-btn"><i class="bi bi-check2 me-1"></i>Save</button></div>
-  </div></div>
-</div>
 
 </body>
 </html>
